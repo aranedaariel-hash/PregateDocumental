@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0f1923">
+<title>DocuTransporte · Pregate</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Sora:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>if(window['pdfjs-dist/build/pdf']) window['pdfjs-dist/build/pdf'].GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';</script>
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+<!-- ══ LOGIN ══ -->
+<div id="login-wall">
+  <div class="login-card" id="login-card">
+    <div class="login-header">
+      <div class="login-logo">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+      </div>
+      <div class="login-title">DocuTransporte</div>
+      <div class="login-sub">Pregate · Acceso</div>
+    </div>
+    <div class="login-body">
+      <div class="login-field">
+        <label class="login-label" for="l-user">Usuario</label>
+        <input class="login-input" id="l-user" type="text" placeholder="Ingresá tu usuario" autocomplete="username" autocapitalize="none" onkeydown="if(event.key==='Enter')document.getElementById('l-pass').focus()">
+      </div>
+      <div class="login-field" style="margin-bottom:4px;">
+        <label class="login-label" for="l-pass">Contraseña</label>
+        <input class="login-input" id="l-pass" type="password" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
+      </div>
+      <button class="login-btn" onclick="doLogin()">Ingresar</button>
+      <div class="login-error" id="login-error"></div>
+    </div>
+    <div class="login-footer">Uso interno · Pregate S.A.</div>
+  </div>
+</div>
+
+<div id="app">
+<div class="toast" id="toast"></div>
+
+<!-- ══ HOME ══ -->
+<div class="screen active" id="s-home">
+  <div class="home-header">
+    <div class="home-top">
+      <div>
+        <div class="logo-mark">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        </div>
+        <div class="app-name">DocuTransporte</div>
+        <div class="app-sub">Pregate</div>
+      </div>
+      <button class="icon-btn" onclick="toggleTheme()">
+        <svg id="theme-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+      </button>
+      <button class="icon-btn" onclick="doLogout()" title="Cerrar sesión" style="color:var(--text3);">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      </button>
+    </div>
+    <div class="auth-bar">
+      <div class="auth-dot" id="auth-dot"></div>
+      <div class="auth-text" id="auth-text">No conectado a Google Drive</div>
+      <button class="auth-btn" id="auth-btn" onclick="handleAuth()">Conectar</button>
+    </div>
+  </div>
+  <div class="section-cards">
+    <div class="sec-card sec-card-chofer" onclick="openSection('chofer')">
+      <div class="sec-icon sec-icon-chofer">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="1.8"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      </div>
+      <div class="sec-info">
+        <div class="sec-title">Transportistas</div>
+        <div class="sec-sub">Licencia · ART · Opcionales</div>
+        <div class="sec-count sec-count-chofer" id="cnt-chofer">0 registros</div>
+      </div>
+      <div style="color:var(--text3);"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg></div>
+    </div>
+    <div class="sec-card sec-card-tractor" onclick="openSection('tractor')">
+      <div class="sec-icon sec-icon-tractor">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="1.8"><rect x="1" y="3" width="15" height="13" rx="1"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+      </div>
+      <div class="sec-info">
+        <div class="sec-title">Tractores</div>
+        <div class="sec-sub">Céd. verde · VTV/RTO · Seguro</div>
+        <div class="sec-count sec-count-tractor" id="cnt-tractor">0 registros</div>
+      </div>
+      <div style="color:var(--text3);"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg></div>
+    </div>
+    <div class="sec-card sec-card-semi" onclick="openSection('semi')">
+      <div class="sec-icon sec-icon-semi">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="1.8"><rect x="1" y="6" width="18" height="12" rx="1"/><path d="M19 10h3v6h-3"/><circle cx="5.5" cy="19.5" r="1.5"/><circle cx="15.5" cy="19.5" r="1.5"/></svg>
+      </div>
+      <div class="sec-info">
+        <div class="sec-title">Semirremolques</div>
+        <div class="sec-sub">Céd. verde · VTV/RTO · Seguro</div>
+        <div class="sec-count sec-count-semi" id="cnt-semi">0 registros</div>
+      </div>
+      <div style="color:var(--text3);"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg></div>
+    </div>
+    <div class="sec-card sec-card-transporte" onclick="openSection('transporte')">
+      <div class="sec-icon sec-icon-transporte">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="1.8"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/></svg>
+      </div>
+      <div class="sec-info">
+        <div class="sec-title">Transportes</div>
+        <div class="sec-sub">Nómina ART · F931 · Póliza flota</div>
+        <div class="sec-count sec-count-transporte" id="cnt-transporte">0 registros</div>
+      </div>
+      <div style="color:var(--text3);"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ LISTA ══ -->
+<div class="screen" id="s-list">
+  <div class="topbar">
+    <button class="topbar-back" onclick="showScreen('s-home')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg></button>
+    <div class="topbar-info"><div class="topbar-title" id="list-title">—</div></div>
+  </div>
+  <div style="padding:12px 16px;background:var(--bg2);border-bottom:1px solid var(--border);flex-shrink:0;">
+    <div class="search-wrap">
+      <div class="search-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></div>
+      <input class="search-input" id="list-search" type="text" placeholder="Buscar…" oninput="filterEntities(this.value)" autocomplete="off">
+    </div>
+  </div>
+  <div class="list-header" id="list-sub-header">—</div>
+  <div id="entity-list" style="flex:1;overflow-y:auto;"></div>
+  <div class="empty-state" id="empty-list" style="display:none;">
+    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    <p>Sin resultados.<br>Agregá uno con el botón +</p>
+  </div>
+  <button class="fab" onclick="goNew()"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+</div>
+
+<!-- ══ DETALLE ══ -->
+<div class="screen" id="s-detail">
+  <div class="topbar">
+    <button class="topbar-back" onclick="showScreen('s-list')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg></button>
+    <div class="topbar-info">
+      <div class="topbar-title" id="detail-name">—</div>
+      <div class="topbar-sub" id="detail-sub">—</div>
+    </div>
+    <button class="icon-btn" onclick="syncFromDrive()" title="Actualizar desde Drive">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+    </button>
+    <button class="icon-btn" onclick="deleteEntity()" title="Eliminar" style="color:var(--bad);">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+    </button>
+  </div>
+  <div id="detail-content" style="overflow-y:auto;flex:1;"></div>
+</div>
+
+<!-- ══ RENOVAR ══ -->
+<div class="screen" id="s-renew">
+  <div class="topbar">
+    <button class="topbar-back" onclick="showScreen('s-detail')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg></button>
+    <div class="topbar-info">
+      <div class="topbar-title" id="renew-title">—</div>
+      <div class="topbar-sub" id="renew-sub">—</div>
+    </div>
+  </div>
+  <div style="overflow-y:auto;flex:1;">
+    <div class="cam-options">
+      <button class="btn-option selected" id="opt-cam" onclick="selectMode('cam')">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+        Fotografiar
+      </button>
+      <button class="btn-option" id="opt-file" onclick="selectMode('file')">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        Cargar archivo
+      </button>
+    </div>
+    <div class="scan-area">
+      <div class="cam-placeholder" id="cam-placeholder" onclick="triggerCapture()">
+        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="opacity:0.25;"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+        <div class="cam-hint" id="cam-hint">Tocá para fotografiar</div>
+        <div style="font-size:10px;color:var(--text3);">Recorte automático activado</div>
+      </div>
+    </div>
+    <input type="file" id="file-cam" accept="image/*,.pdf" capture="environment" style="display:none;" onchange="handleFile(this)">
+    <input type="file" id="file-local" accept="image/*,.pdf" style="display:none;" onchange="handleFile(this)">
+    <input type="file" id="file-page" accept="image/*,.pdf" capture="environment" style="display:none;" onchange="handlePage(this)">
+    <div class="pages-label">Páginas</div>
+    <div class="pages-strip" id="pages-strip">
+      <div class="page-add" onclick="document.getElementById('file-page').click()">+</div>
+    </div>
+    <div class="ocr-box">
+      <div class="ocr-row">
+        <span class="ocr-label">Vencimiento</span>
+        <span class="ocr-chip ocr-chip-wait" id="ocr-chip" style="display:none;">Analizando…</span>
+      </div>
+      <div class="ocr-row">
+        <span class="ocr-label">Fecha</span>
+        <input class="ocr-input" id="ocr-date" type="date" onchange="updateFilename()">
+      </div>
+      <div class="ocr-row">
+        <span class="ocr-label">Archivo</span>
+        <span class="ocr-val" id="ocr-filename">—</span>
+      </div>
+    </div>
+    <div style="padding:0 16px 8px;font-size:11px;color:var(--text2);text-align:center;" id="upload-status"></div>
+    <button class="btn-primary" id="btn-upload" onclick="confirmUpload()">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+      Confirmar y subir a Drive
+    </button>
+  </div>
+</div>
+
+<!-- ══ EDITOR DE IMAGEN ══ -->
+<div class="screen" id="s-editor">
+  <div class="topbar">
+    <button class="topbar-back" onclick="cancelEditor()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg></button>
+    <div class="topbar-info">
+      <div class="topbar-title">Editar documento</div>
+    </div>
+    <button class="icon-btn" onclick="rotateImage()" title="Rotar" style="margin-right:4px;">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+    </button>
+    <button onclick="confirmEditor()" style="padding:7px 14px;background:var(--accent);color:#fff;border:none;border-radius:var(--radius-sm);font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font);white-space:nowrap;">
+      Usar ✓
+    </button>
+  </div>
+
+  <!-- Canvas de edición ocupa toda la pantalla disponible -->
+  <div style="position:relative;background:#000;flex:1;overflow:hidden;" id="editor-wrap">
+    <canvas id="canvas-display" style="width:100%;height:100%;object-fit:contain;display:block;touch-action:none;"></canvas>
+    <div class="crop-point" id="cp-tl"></div>
+    <div class="crop-point" id="cp-tr"></div>
+    <div class="crop-point" id="cp-br"></div>
+    <div class="crop-point" id="cp-bl"></div>
+    <svg id="crop-overlay" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;"></svg>
+  </div>
+
+  <!-- Filtros fijos abajo -->
+  <div style="background:var(--bg2);border-top:1px solid var(--border);padding:10px 16px;display:flex;gap:8px;overflow-x:auto;flex-shrink:0;">
+    <button class="filter-btn selected" id="f-original" onclick="applyFilter('original')">
+      <div class="filter-preview" style="background:linear-gradient(135deg,#888,#ddd);"></div>
+      <span>Original</span>
+    </button>
+    <button class="filter-btn" id="f-doc" onclick="applyFilter('doc')">
+      <div class="filter-preview" style="background:linear-gradient(135deg,#000,#fff);"></div>
+      <span>Documento</span>
+    </button>
+    <button class="filter-btn" id="f-bw" onclick="applyFilter('bw')">
+      <div class="filter-preview" style="background:linear-gradient(135deg,#333,#ccc);"></div>
+      <span>B&N</span>
+    </button>
+    <button class="filter-btn" id="f-bright" onclick="applyFilter('bright')">
+      <div class="filter-preview" style="background:linear-gradient(135deg,#aaa,#fff);"></div>
+      <span>Claro</span>
+    </button>
+  </div>
+  <canvas id="canvas-hidden" style="display:none;"></canvas>
+</div>
+
+<!-- ══ NUEVO ══ -->
+<div class="screen" id="s-new">
+  <div class="topbar">
+    <button class="topbar-back" onclick="showScreen('s-list')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg></button>
+    <div class="topbar-info"><div class="topbar-title" id="new-title">—</div></div>
+  </div>
+  <div style="overflow-y:auto;flex:1;" id="new-form-body"></div>
+</div>
+
+<!-- ══ LIGHTBOX ══ -->
+<div class="lightbox" id="lightbox" onclick="closeLightbox()">
+  <button class="lightbox-close" onclick="closeLightbox()">✕</button>
+  <img id="lightbox-img" src="" alt="">
+</div>
+
+<!-- ══ VISTA RESUMEN ══ -->
+<div class="screen" id="s-ver">
+  <div id="ver-content" style="overflow-y:auto;height:100%;">
+    <div style="padding:40px 20px;text-align:center;color:var(--text3);">Cargando…</div>
+  </div>
+</div>
+
+</div>
+
+<script src="js/config.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/db.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/forms.js"></script>
+<script src="js/scanner.js"></script>
+<script src="js/supabase.js"></script>
+</body>
+</html>

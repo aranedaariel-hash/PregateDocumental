@@ -1,0 +1,1 @@
+// Supabase - pendiente de implementar
