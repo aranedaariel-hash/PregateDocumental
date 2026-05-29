@@ -69,14 +69,17 @@ async function loadStateFromSupabase() {
 
 // ══ GUARDAR ENTIDAD ══
 async function sbSaveEntidad(entidad, section) {
+  const esVehiculo = section === 'tractor' || section === 'semi';
   const payload = {
-    tipo:      section,
-    label:     entidad.label,
-    sub:       entidad.sub || null,
-    categoria: entidad.categoria || null,
-    pbtc:      entidad.pbtc || null,
-    ejes:      entidad.ejes || null,
+    tipo:  section,
+    label: entidad.label,
+    sub:   entidad.sub || null,
     actualizado_en: new Date().toISOString(),
+    ...(esVehiculo && {
+      categoria: entidad.categoria || null,
+      pbtc:      entidad.pbtc      || null,
+      ejes:      entidad.ejes      || null,
+    }),
   };
   const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(entidad.id);
   if (isUuid) {
