@@ -92,7 +92,6 @@ function handleFile(input){
     openEditor(f, (editedFile)=>{
       capturedPages=[editedFile];
       renderPages();
-      if(accessToken) runOCR(editedFile);
     });
   } else {
     // PDF - add directly without editor
