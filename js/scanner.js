@@ -1,60 +1,3 @@
-// ══ OCR ══
-async function runOCR(file){
-  try {
-    document.getElementById('ocr-chip').style.display='inline';
-    document.getElementById('ocr-chip').textContent='Analizando…';
-    document.getElementById('ocr-chip').className='ocr-chip ocr-chip-wait';
-
-    const arrBuf = await file.arrayBuffer();
-    const b64 = btoa(String.fromCharCode(...new Uint8Array(arrBuf)));
-    const body = {requests:[{image:{content:b64},features:[{type:'TEXT_DETECTION'}]}]};
-
-    const res = await fetch(`https://vision.googleapis.com/v1/images:annotate?key=&access_token=${accessToken}`, {
-      method:'POST',
-      headers:{'Content-Type':'application/json','Authorization':`Bearer ${accessToken}`},
-      body: JSON.stringify(body)
-    });
-    const data = await res.json();
-    const text = data.responses?.[0]?.fullTextAnnotation?.text || '';
-
-    // Buscar fechas en formato DD/MM/AAAA o DD-MM-AAAA o AAAA-MM-DD
-    const patterns = [
-      /(\d{2})[\/-](\d{2})[\/-](\d{4})/g,
-      /(\d{4})-(\d{2})-(\d{2})/g,
-    ];
-
-    let dates = [];
-    for(const p of patterns){
-      let m;
-      while((m=p.exec(text))!==null){
-        let y,mo,d;
-        if(m[1].length===4){ y=m[1]; mo=m[2]; d=m[3]; }
-        else { d=m[1]; mo=m[2]; y=m[3]; }
-        const dt = new Date(`${y}-${mo}-${d}`);
-        if(!isNaN(dt) && dt>new Date()) dates.push({y,mo,d,dt});
-      }
-    }
-
-    if(dates.length > 0){
-      // Tomar la fecha más lejana (probable vencimiento)
-      dates.sort((a,b)=>b.dt-a.dt);
-      const best = dates[0];
-      document.getElementById('ocr-date').value=`${best.y}-${best.mo}-${best.d}`;
-      document.getElementById('ocr-chip').textContent='Detectado automáticamente';
-      document.getElementById('ocr-chip').className='ocr-chip';
-      updateFilename();
-      showToast('📅 Fecha detectada: '+best.d+'/'+best.mo+'/'+best.y);
-    } else {
-      document.getElementById('ocr-chip').textContent='No detectado · ingresá manual';
-      document.getElementById('ocr-chip').className='ocr-chip ocr-chip-wait';
-      showToast('No se detectó fecha · ingresala manualmente');
-    }
-  } catch(e){
-    document.getElementById('ocr-chip').style.display='none';
-    showToast('OCR no disponible · ingresá fecha manual');
-  }
-}
-
 // ══ RENEW ══
 function openRenew(docId,docName){
   currentDoc={docId,docName};
@@ -64,7 +7,6 @@ function openRenew(docId,docName){
   document.getElementById('renew-title').textContent=docName;
   document.getElementById('renew-sub').textContent=e.label;
   document.getElementById('ocr-date').value='';
-  document.getElementById('ocr-chip').style.display='none';
   document.getElementById('ocr-filename').textContent='—';
   document.getElementById('upload-status').textContent='Se guardará en Google Drive automáticamente';
   document.getElementById('btn-upload').disabled=false;
