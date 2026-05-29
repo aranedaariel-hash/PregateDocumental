@@ -202,18 +202,16 @@ async function saveNew(){
   }
   if(!db[currentSection]) db[currentSection]=[];
   db[currentSection].push(entry);
-  // Always persist to localStorage immediately so OAuth redirects don't lose this entry
-  localStorage.setItem('dct-db', JSON.stringify(db));
   updateCounts();
-  if(accessToken){
-    try{
-      await saveStateToDrive();
-      showToast('✓ Guardado correctamente');
-    }catch(e){
-      showToast('Guardado local (sin Drive)');
-    }
-  } else {
-    showToast('✓ Guardado localmente');
+  try {
+    const uuid = await sbSaveEntidad(entry, currentSection);
+    entry.id = uuid; // reemplazar ID local por UUID de Supabase
+    showToast('✓ Guardado correctamente');
+  } catch(e) {
+    db[currentSection] = db[currentSection].filter(x => x !== entry);
+    updateCounts();
+    showToast('Error al guardar: ' + e.message);
+    return;
   }
   setTimeout(()=>{ openEntity(entry.id); },600);
 }

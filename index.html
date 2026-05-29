@@ -9,6 +9,8 @@
 <title>DocuTransporte · Pregate</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Sora:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script>if(window['pdfjs-dist/build/pdf']) window['pdfjs-dist/build/pdf'].GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';</script>
 <link rel="stylesheet" href="css/styles.css">
@@ -27,8 +29,8 @@
     </div>
     <div class="login-body">
       <div class="login-field">
-        <label class="login-label" for="l-user">Usuario</label>
-        <input class="login-input" id="l-user" type="text" placeholder="Ingresá tu usuario" autocomplete="username" autocapitalize="none" onkeydown="if(event.key==='Enter')document.getElementById('l-pass').focus()">
+        <label class="login-label" for="l-user">Email</label>
+        <input class="login-input" id="l-user" type="email" placeholder="usuario@sgl.local" autocomplete="email" autocapitalize="none" onkeydown="if(event.key==='Enter')document.getElementById('l-pass').focus()">
       </div>
       <div class="login-field" style="margin-bottom:4px;">
         <label class="login-label" for="l-pass">Contraseña</label>
@@ -58,14 +60,18 @@
       <button class="icon-btn" onclick="toggleTheme()">
         <svg id="theme-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
       </button>
+      <button class="icon-btn" id="btn-users" onclick="openUsers()" title="Gestión de usuarios" style="display:none;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      </button>
       <button class="icon-btn" onclick="doLogout()" title="Cerrar sesión" style="color:var(--text3);">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
       </button>
     </div>
     <div class="auth-bar">
       <div class="auth-dot" id="auth-dot"></div>
-      <div class="auth-text" id="auth-text">No conectado a Google Drive</div>
-      <button class="auth-btn" id="auth-btn" onclick="handleAuth()">Conectar</button>
+      <div class="auth-text" id="auth-text">No conectado</div>
+      <span id="role-badge" style="display:none;font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;font-family:var(--mono);letter-spacing:1px;margin-left:4px;"></span>
+      <button class="auth-btn" id="auth-btn" onclick="doLogout()">Salir</button>
     </div>
   </div>
   <div class="section-cards">
@@ -206,7 +212,7 @@
     <div style="padding:0 16px 8px;font-size:11px;color:var(--text2);text-align:center;" id="upload-status"></div>
     <button class="btn-primary" id="btn-upload" onclick="confirmUpload()">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-      Confirmar y subir a Drive
+      Confirmar y subir
     </button>
   </div>
 </div>
@@ -265,6 +271,19 @@
     <div class="topbar-info"><div class="topbar-title" id="new-title">—</div></div>
   </div>
   <div style="overflow-y:auto;flex:1;" id="new-form-body"></div>
+</div>
+
+<!-- ══ USUARIOS (admin) ══ -->
+<div class="screen" id="s-users">
+  <div class="topbar">
+    <button class="topbar-back" onclick="showScreen('s-home')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg></button>
+    <div class="topbar-info"><div class="topbar-title">Gestión de usuarios</div></div>
+  </div>
+  <div class="list-header">Usuarios registrados</div>
+  <div id="users-list" style="flex:1;overflow-y:auto;"></div>
+  <div style="padding:12px 16px 20px;background:var(--bg2);border-top:1px solid var(--border);font-size:11px;color:var(--text3);line-height:1.6;">
+    Para agregar usuarios: creá la cuenta en <strong>Supabase Dashboard → Auth → Users</strong>, luego insertá en la tabla <code>usuarios</code> con su <code>id</code> y <code>rol</code>.
+  </div>
 </div>
 
 <!-- ══ LIGHTBOX ══ -->

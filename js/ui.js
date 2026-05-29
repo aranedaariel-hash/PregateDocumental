@@ -39,8 +39,7 @@ function updateCounts(){
 
 // ══ SYNC ══
 async function syncFromDrive(){
-  if(!accessToken){ showToast('Conectá Drive primero'); return; }
-  showToast('Actualizando desde Drive…');
+  showToast('Actualizando…');
   await loadStateFromDrive();
   renderDetail();
 }
@@ -150,26 +149,10 @@ async function deleteEntity(){
     currentEntityId = null;
     updateCounts();
 
-    // 2. Save updated estado.json to Drive (critical step)
-    if(accessToken && stateFileId){
-      try {
-        await saveStateToDrive();
-      } catch(err){ console.warn('Error saving state after delete', err); }
-    }
-
-    // 3. Delete folder from Drive (best effort)
-    if(accessToken && subFolderIds[currentSection] && e){
-      try {
-        const safeName = e.label.replace(/[^a-zA-Z0-9_\-\.]/g,'_');
-        const res = await driveRequest(
-          `https://www.googleapis.com/drive/v3/files?q=name='${safeName}' and '${subFolderIds[currentSection]}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false&fields=files(id)`
-        );
-        const data = await res.json();
-        if(data.files && data.files.length > 0){
-          await driveRequest(`https://www.googleapis.com/drive/v3/files/${data.files[0].id}`, {method:'DELETE'});
-        }
-      } catch(err){ console.warn('Drive folder delete failed', err); }
-    }
+    // 2. Eliminar en Supabase (cascade borra documentos)
+    try {
+      await sbDeleteEntidad(e.id);
+    } catch(err){ console.warn('Error al eliminar en Supabase', err); }
 
     showToast('✓ Eliminado correctamente');
     showScreen('s-list');
@@ -205,6 +188,10 @@ function renderDetail(){
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
         Ir al enlace
       </a>
+      <button onclick="downloadEntidadZip()" style="padding:8px 10px;background:var(--bg3);color:var(--text2);border:1px solid var(--border2);border-radius:var(--radius-sm);font-size:12px;font-weight:600;cursor:pointer;font-family:var(--font);display:flex;align-items:center;gap:5px;">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        ZIP
+      </button>
     </div>
   </div>`;
 
@@ -228,10 +215,10 @@ function renderDocCard(doc,data){
     : vencido
       ? `<span class="badge badge-bad">${data?'Venció '+formatVto(data.vto):'Sin cargar'}</span>`
       : `<span class="badge badge-ok">Vence ${formatVto(data.vto)}</span>`;
-  const driveBtn=data&&data.driveUrl&&data.driveUrl!=='#'
-    ?`<button class="btn-sm btn-sm-accent" onclick="window.open('${data.driveUrl}','_blank')">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-        Ver en Drive</button>` : '';
+  const driveBtn = data && data.storage_path
+    ? `<button class="btn-sm btn-sm-accent" onclick="openPdf('${data.storage_path}')">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        Ver PDF</button>` : '';
   return `<div class="doc-card">
     <div class="doc-top"><div class="doc-left"><div class="status-dot ${dot}"></div><div class="doc-name">${doc.name}</div></div>${badge}</div>
     ${data?`<div class="doc-file">${data.file}</div>`:''}
@@ -299,10 +286,10 @@ function renderVerScreen(sec, entityId){
       : vencido
         ? `<span class="badge badge-bad">${data?'Venció '+formatVto(data.vto):'Sin cargar'}</span>`
         : `<span class="badge badge-ok">Vence ${formatVto(data.vto)}</span>`;
-    const driveBtn = data && data.driveUrl && data.driveUrl!=='#'
-      ? `<a href="${data.driveUrl}" target="_blank" class="ver-btn ver-btn-accent">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-          Ver PDF en Drive</a>` : '';
+    const driveBtn = data && data.storage_path
+      ? `<button onclick="openPdf('${data.storage_path}')" class="ver-btn ver-btn-accent">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          Ver PDF</button>` : '';
     const previewHtml = data && data.previewUrl
       ? `<div class="ver-img-wrap" onclick="openLightbox('${data.previewUrl}')">
           <img class="ver-preview" src="${data.previewUrl}" alt="${doc.name}" loading="lazy" onerror="this.parentElement.innerHTML='<div style=padding:20px;text-align:center;background:var(--bg2);color:var(--text3);font-size:12px;>No se pudo cargar la imagen</div>'">
@@ -324,4 +311,86 @@ function renderVerScreen(sec, entityId){
 
   html += `<div style="padding:20px;text-align:center;font-size:11px;color:var(--text3);">DocuTransporte · Pregate<br>Última actualización: ${new Date().toLocaleDateString('es-AR')}</div>`;
   content.innerHTML = html;
+}
+
+// ══ ABRIR PDF (signed URL) ══
+async function openPdf(storagePath) {
+  if (!storagePath) return;
+  try {
+    showToast('Generando enlace…');
+    const url = await sbGetSignedUrl(storagePath);
+    window.open(url, '_blank');
+  } catch (e) {
+    showToast('Error al abrir PDF: ' + e.message);
+  }
+}
+
+// ══ DESCARGAR TODO COMO ZIP ══
+async function downloadEntidadZip() {
+  const e = (db[currentSection] || []).find(x => x.id === currentEntityId);
+  if (!e) return;
+  if (typeof JSZip === 'undefined') { showToast('JSZip no disponible'); return; }
+
+  const paths = Object.entries(e.docs || {}).filter(([, d]) => d.storage_path);
+  if (!paths.length) { showToast('No hay archivos subidos'); return; }
+
+  showToast('Preparando ZIP…');
+  const zip = new JSZip();
+  for (const [docId, docData] of paths) {
+    try {
+      const url = await sbGetSignedUrl(docData.storage_path);
+      const res = await fetch(url);
+      const blob = await res.blob();
+      zip.file(docData.file || `${docId}.pdf`, blob);
+    } catch (err) { console.warn('No se pudo incluir', docId, err); }
+  }
+  const content = await zip.generateAsync({ type: 'blob' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(content);
+  a.download = `${e.label.replace(/[^a-zA-Z0-9]/g, '_')}_${currentSection}.zip`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+  showToast('✓ ZIP descargado');
+}
+
+// ══ GESTIÓN DE USUARIOS (admin) ══
+async function openUsers() {
+  showScreen('s-users');
+  await renderUserList();
+}
+
+async function renderUserList() {
+  const list = document.getElementById('users-list');
+  list.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text3);">Cargando…</div>';
+  try {
+    const users = await sbGetUsuarios();
+    if (!users.length) {
+      list.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text3);">Sin usuarios registrados.</div>';
+      return;
+    }
+    list.innerHTML = users.map(u => `
+      <div class="entity-row" style="justify-content:space-between;">
+        <div>
+          <div class="row-name">${u.email}</div>
+          <div class="row-sub" style="margin-top:2px;">${u.rol === 'admin' ? '● Admin' : '● Auditor'}</div>
+        </div>
+        ${u.id !== currentUser?.id
+          ? `<button onclick="removeUser('${u.id}')" style="padding:6px 10px;border:1px solid var(--border2);background:var(--bad-bg);color:var(--bad);border-radius:var(--radius-sm);font-size:11px;cursor:pointer;font-family:var(--font);">Eliminar</button>`
+          : '<span style="font-size:11px;color:var(--text3);">(yo)</span>'}
+      </div>`).join('');
+  } catch (e) {
+    list.innerHTML = `<div style="padding:20px;text-align:center;color:var(--bad);">${e.message}</div>`;
+  }
+}
+
+async function removeUser(id) {
+  showConfirm('¿Eliminar este usuario de la tabla de roles? (La cuenta de auth debe eliminarse desde el dashboard de Supabase.)', async () => {
+    try {
+      await sbDeleteUsuario(id);
+      showToast('✓ Usuario eliminado');
+      await renderUserList();
+    } catch (e) {
+      showToast('Error: ' + e.message);
+    }
+  });
 }

@@ -1,8 +1,6 @@
-// ══ CREDENCIALES ══
-const CLIENT_ID = '491607847299-lo03fhrvlgkc8v31a1sl62qv82v9j3c9.apps.googleusercontent.com';
-const SCOPES = 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.email';
-const DRIVE_FOLDER_NAME = 'Documentacion-Transporte';
-const STATE_FILE_NAME = 'estado.json';
+// ══ SUPABASE ══
+const SUPABASE_URL = 'https://hgeevmzxfywyzvfyfsmt.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhnZWV2bXp4Znl3eXp2Znlmc210Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAwMDg1OTQsImV4cCI6MjA5NTU4NDU5NH0.JQnm4pMMl1gxiP8gZZy_YN74GeyN1SBsB5Ef82X7wwM';
 
 // ══ CONFIG DOCS ══
 const DOCS = {
@@ -36,8 +34,3 @@ const SUBFOLDER = {chofer:'Choferes',tractor:'Tractores',semi:'Semis',transporte
 
 // Docs that never expire (cédula verde = lifetime document)
 const NEVER_EXPIRE_DOCS = new Set(['cedverde']);
-
-// ══ LOGIN ══
-const USERS = [
-  {user:'auditor', pass:'1234', role:'admin'},
-];

@@ -175,71 +175,58 @@ async function confirmUpload(){
   const btn=document.getElementById('btn-upload');
   const statusEl=document.getElementById('upload-status');
 
-  if(!accessToken){
-    const e=(db[currentSection]||[]).find(x=>x.id===currentEntityId);
-    e.docs[currentDoc.docId]={vto:dv,file:filename,driveUrl:'#',previewUrl:''};
-    saveDB(); updateCounts(); showToast('Guardado localmente (sin Drive)');
-    setTimeout(()=>{ showScreen('s-detail'); renderDetail(); },1000);
-    return;
-  }
-
   btn.disabled=true;
-  btn.innerHTML='<div class="spinner"></div> Subiendo a Drive…';
+  btn.innerHTML='<div class="spinner"></div> Subiendo…';
 
   try {
     const e=(db[currentSection]||[]).find(x=>x.id===currentEntityId);
-    statusEl.textContent='Buscando carpeta en Drive…';
-    const folderId=await getOrCreateEntityFolder(e.label, currentSection);
 
-    // Delete old file from Drive if it exists (so we always have fresh content)
+    // Eliminar archivo anterior de Storage si existe
     const oldDoc = e.docs[currentDoc.docId];
-    if(oldDoc && oldDoc.fileId){
+    if(oldDoc && oldDoc.storage_path){
       try {
         statusEl.textContent='Reemplazando documento anterior…';
-        await driveRequest(`https://www.googleapis.com/drive/v3/files/${oldDoc.fileId}`, {method:'DELETE'});
-      } catch(ex){ console.warn('Could not delete old file', ex); }
+        await sbDeleteFile(oldDoc.storage_path);
+      } catch(ex){ console.warn('No se pudo eliminar archivo anterior', ex); }
     }
 
-    // Upload main file
+    // Subir archivo principal a Supabase Storage
     statusEl.textContent='Subiendo archivo…';
-    const uploadedFile=await uploadFileToDrive(capturedPages[0], filename, folderId);
-    const driveUrl = uploadedFile.webViewLink||'#';
-    const fileId   = uploadedFile.id||'';
+    const storagePath = `${currentSection}/${e.id}/${filename}`;
+    const uploadedPath = await sbUploadFile(capturedPages[0], storagePath);
 
-    // Generate and upload preview JPG - store as base64 in state
+    // Generar preview como base64 (igual que antes)
     let previewUrl = '';
     try {
       statusEl.textContent='Generando preview…';
       const previewBlob = await generatePreviewJPG(capturedPages[0]);
       if(previewBlob){
-        // Convert to base64 and store directly in estado.json
-        const base64 = await new Promise(res=>{
+        previewUrl = await new Promise(res=>{
           const reader = new FileReader();
-          reader.onload = e => res(e.target.result);
+          reader.onload = ev => res(ev.target.result);
           reader.readAsDataURL(previewBlob);
         });
-        previewUrl = base64; // data:image/jpeg;base64,...
-        // Also upload to Drive as backup
-        try {
-          const previewName = filename.replace(/\.[^.]+$/, '_preview.jpg');
-          const previewFile = new File([previewBlob], previewName, {type:'image/jpeg'});
-          await uploadFileToDrive(previewFile, previewName, folderId);
-        } catch(e){}
       }
-    } catch(e){ console.warn('Preview generation failed', e); }
+    } catch(ex){ console.warn('Preview generation failed', ex); }
 
-    e.docs[currentDoc.docId]={vto:dv, file:filename, driveUrl, fileId, previewUrl};
-    statusEl.textContent='Guardando estado…';
-    await saveStateToDrive();
+    // Actualizar en memoria
+    const docData = { vto: dv, file: filename, storage_path: uploadedPath, previewUrl, driveUrl: '#storage' };
+    e.docs[currentDoc.docId] = docData;
     updateCounts();
-    showToast('✓ Subido a Drive correctamente');
+
+    // Persistir en Supabase
+    statusEl.textContent='Guardando en base de datos…';
+    const docId = await sbSaveDocumento(e.id, currentDoc.docId, docData);
+    e.docs[currentDoc.docId].id = docId;
+
+    showToast('✓ Subido correctamente');
     btn.disabled=false;
-    btn.innerHTML='<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Confirmar y subir a Drive';
+    btn.innerHTML='<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Confirmar y subir';
     statusEl.textContent='';
     setTimeout(()=>{ showScreen('s-detail'); renderDetail(); },1000);
   } catch(err){
     btn.disabled=false;
-    btn.innerHTML='<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Confirmar y subir a Drive';
+    btn.innerHTML='<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Confirmar y subir';
     statusEl.textContent='';
     showToast('Error al subir: '+err.message);
   }
@@ -459,78 +446,39 @@ function cancelEditor(){
 }
 
 // ══ INIT ══
-// Detectar si es vista resumen por URL
 (function(){
   const params = new URLSearchParams(window.location.search);
   const ver = params.get('ver');
   const id  = params.get('id');
+
   if(ver && id){
-    // Vista resumen es pública — saltar login
+    // Vista pública — skip login, cargar desde Supabase con anon key
     document.getElementById('login-wall').classList.add('hidden');
     showScreen('s-ver');
-    document.getElementById('ver-content').innerHTML=`<div style="padding:60px 20px;text-align:center;color:var(--text3);">Cargando documentación…</div>`;
+    document.getElementById('ver-content').innerHTML =
+      '<div style="padding:60px 20px;text-align:center;color:var(--text3);">Cargando documentación…</div>';
 
-    // Always try localStorage first (works same-device, avoids CORS)
-    const saved = localStorage.getItem('dct-db');
-    if(saved){
-      try{ Object.assign(db, JSON.parse(saved)); }catch(e){}
-      if((db[ver]||[]).find(x=>x.id===id)){
-        renderVerScreen(ver, id);
-        return;
-      }
-    }
-
-    // Try Drive API with token (same-device, has accessToken from hash)
-    const hash = window.location.hash;
-    let tokenFromHash = null;
-    if(hash){
-      const hp = new URLSearchParams(hash.substring(1));
-      tokenFromHash = hp.get('access_token');
-      if(tokenFromHash) window.history.replaceState(null,'',window.location.pathname+'?ver='+ver+'&id='+id);
-    }
-    const meta = localStorage.getItem('dct-meta');
-    const stateId = meta ? JSON.parse(meta).stateFileId : null;
-    const token = tokenFromHash || accessToken || null;
-
-    if(stateId && token){
-      // Drive API with token — best option, no CORS
-      fetch(`https://www.googleapis.com/drive/v3/files/${stateId}?alt=media`, {
-        headers:{'Authorization': `Bearer ${token}`}
-      })
-        .then(r=>{ if(!r.ok) throw new Error('Drive error'); return r.json(); })
-        .then(data=>{ Object.assign(db,data); localStorage.setItem('dct-db',JSON.stringify(db)); renderVerScreen(ver,id); })
-        .catch(()=>{ renderVerScreen(ver,id); });
-    } else if(stateId){
-      // Cross-device public view: file has anyone/reader permission set on every save
-      // Use the public export URL — works as long as Drive sharing is active
-      fetch(`https://www.googleapis.com/drive/v3/files/${stateId}?alt=media&key=AIzaSyD-placeholder`, {
-        headers: {}
-      })
-      .catch(()=>
-        // Fallback: try public export URL
-        fetch(`https://drive.google.com/uc?export=download&id=${stateId}`, {mode:'cors'})
-      )
-      .then(r=>{ if(!r.ok) throw new Error(); return r.json(); })
-      .then(data=>{ Object.assign(db,data); localStorage.setItem('dct-db',JSON.stringify(db)); renderVerScreen(ver,id); })
-      .catch(()=>{
-        // Last resort: render from whatever localStorage has
-        if((db[ver]||[]).find(x=>x.id===id)){
-          renderVerScreen(ver, id);
-        } else {
-          document.getElementById('ver-content').innerHTML=`<div style="padding:60px 20px;text-align:center;color:var(--text3);">
-            <div style="font-size:40px;margin-bottom:16px;">⚠️</div>
-            <p style="font-size:15px;line-height:1.6;">Abrí este enlace desde el mismo<br>dispositivo y navegador donde usás la app.</p>
-          </div>`;
+    sbLoadPublicEntity(ver, id)
+      .then(ent => {
+        if(!ent){ renderVerScreen(ver, id); return; }
+        // Reconstruir estructura en db para reutilizar renderVerScreen
+        const docs = {};
+        for(const doc of (ent.documentos || [])){
+          docs[doc.nombre] = { id: doc.id, vto: doc.vto, file: doc.filename||'',
+            storage_path: doc.storage_path||null, previewUrl: doc.preview_url||'', driveUrl: '' };
         }
+        if(!db[ver]) db[ver] = [];
+        db[ver] = db[ver].filter(x => x.id !== ent.id);
+        db[ver].push({ id: ent.id, label: ent.label, sub: ent.sub||'',
+          categoria: ent.categoria||'', pbtc: ent.pbtc||'', ejes: ent.ejes||'', docs });
+        renderVerScreen(ver, id);
+      })
+      .catch(() => {
+        document.getElementById('ver-content').innerHTML =
+          '<div style="padding:60px 20px;text-align:center;color:var(--text3);"><div style="font-size:40px;margin-bottom:16px;">⚠️</div><p style="font-size:15px;line-height:1.6;">No se pudo cargar la documentación.</p></div>';
       });
-    } else {
-      renderVerScreen(ver, id);
-    }
   } else {
-    // Verificar sesión activa (sessionStorage persiste mientras el tab esté abierto)
-    if(checkSession()){
-      checkTokenFromUrl();
-    }
-    // Sin sesión: login wall visible; doLogin() llama a checkTokenFromUrl() al ingresar
+    // App normal — verificar sesión Supabase
+    initApp();
   }
 })();
