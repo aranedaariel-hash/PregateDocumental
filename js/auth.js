@@ -3,12 +3,14 @@
 function updateAuthUI(connected, email = '', rol = '') {
   const dot = document.getElementById('auth-dot');
   const txt = document.getElementById('auth-text');
-  const btn = document.getElementById('auth-btn');
+  const roleText = document.getElementById('auth-role-text');
+  const btnLabel = document.getElementById('auth-btn-label');
   const badge = document.getElementById('role-badge');
   if (connected) {
     dot.classList.add('connected');
-    txt.textContent = email;
-    btn.textContent = 'Salir';
+    txt.textContent = email.split('@')[0];
+    if (roleText) roleText.textContent = ' · ' + (rol === 'admin' ? 'Admin' : 'Auditor');
+    if (btnLabel) btnLabel.textContent = 'Cerrar sesión';
     if (badge) {
       badge.textContent = rol === 'admin' ? 'ADMIN' : 'AUDITOR';
       badge.style.display = 'inline-block';
@@ -21,7 +23,8 @@ function updateAuthUI(connected, email = '', rol = '') {
   } else {
     dot.classList.remove('connected');
     txt.textContent = 'No conectado';
-    btn.textContent = 'Conectar';
+    if (roleText) roleText.textContent = '';
+    if (btnLabel) btnLabel.textContent = 'Conectar';
     if (badge) badge.style.display = 'none';
     const usersBtn = document.getElementById('btn-users');
     if (usersBtn) usersBtn.style.display = 'none';
