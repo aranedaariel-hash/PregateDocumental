@@ -460,6 +460,8 @@ html:not(.light) .login-input::placeholder { color: #475569; }
 html:not(.light) .login-input:focus { background: #1e293b; border-color: var(--b400); }
 html:not(.light) .login-icon { background: #162032; }
 html:not(.light) .topbar { background: linear-gradient(180deg, #0a1d3a 0%, #07121f 100%); }
+html:not(.light) .home-topbar { background: linear-gradient(180deg, #0a1d3a 0%, #07121f 100%); }
+html:not(.light) .home-hero { background: #030c17; }
 html:not(.light) .sec-card { background: #1e293b; border-color: #334155; }
 html:not(.light) .entity-row { background: #1e293b; border-color: #2d3f55; }
 html:not(.light) .entity-row:hover { background: #243044; }
