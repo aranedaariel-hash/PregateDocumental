@@ -425,3 +425,47 @@ html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(-
   transition: background .15s;
 }
 .btn-download-zip:hover { background: var(--b600); }
+
+/* ══════════════ DARK MODE ══════════════ */
+html:not(.light) {
+  --bg:      #0f172a;
+  --bg2:     #1e293b;
+  --bg3:     #162032;
+  --bg4:     #1a2a3d;
+  --surf:    #1e293b;
+  --s2:      #162032;
+  --s3:      #1a2a3d;
+  --surface: #1e293b;
+  --text:    #f1f5f9;
+  --text2:   #94a3b8;
+  --text3:   #64748b;
+  --border:  #334155;
+  --brd2:    #475569;
+  --ok-l:    #064e3b;
+  --warn-l:  #451a03;
+  --bad-l:   #450a0a;
+  --info-l:  #1e3a5f;
+  --shadow-xs: 0 1px 2px rgba(0,0,0,.3);
+  --shadow-sm: 0 1px 3px rgba(0,0,0,.4), 0 1px 2px rgba(0,0,0,.3);
+  --shadow:    0 4px 12px rgba(0,0,0,.5), 0 2px 4px rgba(0,0,0,.3);
+  --shadow-lg: 0 12px 32px rgba(0,0,0,.5);
+}
+html:not(.light) #login-wall { background: #0a1225; }
+html:not(.light) .login-card { background: #1e293b; border-color: #334155; }
+html:not(.light) .login-title { color: #e2e8f0; }
+html:not(.light) .login-sub { color: #94a3b8; }
+html:not(.light) .login-label { color: #cbd5e1; }
+html:not(.light) .login-input { background: #162032; border-color: #334155; color: #f1f5f9; }
+html:not(.light) .login-input::placeholder { color: #475569; }
+html:not(.light) .login-input:focus { background: #1e293b; border-color: var(--b400); }
+html:not(.light) .login-icon { background: #162032; }
+html:not(.light) .topbar { background: linear-gradient(180deg, #0a1d3a 0%, #07121f 100%); }
+html:not(.light) .sec-card { background: #1e293b; border-color: #334155; }
+html:not(.light) .entity-row { background: #1e293b; border-color: #2d3f55; }
+html:not(.light) .entity-row:hover { background: #243044; }
+html:not(.light) .doc-card { background: #1e293b; border-color: #2d3f55; }
+html:not(.light) .list-header, html:not(.light) .doc-section-title { background: #162032; }
+html:not(.light) .search-input { background: #162032; border-color: #334155; color: #f1f5f9; }
+html:not(.light) .search-input::placeholder { color: #475569; }
+html:not(.light) .doc-name { color: #e2e8f0; }
+html:not(.light) .row-name { color: #e2e8f0; }
