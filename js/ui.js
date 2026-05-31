@@ -151,6 +151,7 @@ async function deleteEntity(){
 
     // 2. Eliminar en Supabase (cascade borra documentos)
     try {
+      await sbWriteAuditLog({ accion: 'entidad_eliminada', entidad_id: e.id, entidad_label: e.label, entidad_tipo: currentSection });
       await sbDeleteEntidad(e.id);
     } catch(err){ console.warn('Error al eliminar en Supabase', err); }
 
@@ -353,44 +354,193 @@ async function downloadEntidadZip() {
   showToast('✓ ZIP descargado');
 }
 
-// ══ GESTIÓN DE USUARIOS (admin) ══
+// ══ PANEL ADMIN ══
 async function openUsers() {
   showScreen('s-users');
-  await renderUserList();
+  switchAdminTab('usuarios');
+}
+
+function switchAdminTab(tab) {
+  ['usuarios', 'dashboard', 'auditoria'].forEach(t => {
+    const btn = document.getElementById('tab-' + t);
+    if (!btn) return;
+    const active = t === tab;
+    btn.style.color       = active ? 'var(--accent)' : 'var(--text2)';
+    btn.style.borderBottom = active ? '2px solid var(--accent)' : '2px solid transparent';
+    btn.style.fontWeight  = active ? '600' : '400';
+  });
+  const panel = document.getElementById('admin-panel');
+  panel.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text3);">Cargando…</div>';
+  if (tab === 'usuarios')   renderUserList();
+  else if (tab === 'dashboard') renderDashboard();
+  else renderAuditLog();
+}
+
+function _userRowHtml(u) {
+  return `<div class="entity-row" style="justify-content:space-between;">
+    <div>
+      <div class="row-name">${u.email}</div>
+      <div class="row-sub" style="margin-top:2px;">${u.rol === 'admin' ? '● Admin' : '● Auditor'}</div>
+    </div>
+    ${u.id !== currentUser?.id
+      ? `<button onclick="removeUser('${u.id}')" style="padding:6px 10px;border:1px solid var(--border2);background:var(--bad-bg);color:var(--bad);border-radius:var(--radius-sm);font-size:11px;cursor:pointer;font-family:var(--font);">Eliminar</button>`
+      : '<span style="font-size:11px;color:var(--text3);">(yo)</span>'}
+  </div>`;
 }
 
 async function renderUserList() {
-  const list = document.getElementById('users-list');
-  list.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text3);">Cargando…</div>';
+  const panel = document.getElementById('admin-panel');
+  panel.innerHTML = `
+    <div style="margin:16px;padding:16px;background:var(--bg2);border:1px solid var(--border2);border-radius:var(--radius);">
+      <div style="font-size:11px;color:var(--text3);font-family:var(--mono);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;">Crear usuario</div>
+      <input class="form-input" id="new-user-email" placeholder="Email" type="email" style="margin-bottom:8px;">
+      <input class="form-input" id="new-user-pass" placeholder="Contraseña (mín. 6 caracteres)" type="password" style="margin-bottom:8px;">
+      <select id="new-user-rol" style="width:100%;padding:10px 12px;border:1px solid var(--border2);border-radius:var(--radius-sm);background:var(--bg3);color:var(--text);font-size:13px;font-family:var(--font);margin-bottom:12px;">
+        <option value="auditor">Auditor</option>
+        <option value="admin">Admin</option>
+      </select>
+      <button onclick="createUser()" style="width:100%;padding:10px;background:var(--accent);color:#fff;border:none;border-radius:var(--radius-sm);font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font);">Crear usuario</button>
+      <div id="create-user-status" style="margin-top:8px;font-size:12px;min-height:16px;"></div>
+    </div>
+    <div id="users-list"><div style="padding:20px;text-align:center;color:var(--text3);">Cargando usuarios…</div></div>`;
+
   try {
     const users = await sbGetUsuarios();
-    if (!users.length) {
-      list.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text3);">Sin usuarios registrados.</div>';
-      return;
-    }
-    list.innerHTML = users.map(u => `
-      <div class="entity-row" style="justify-content:space-between;">
-        <div>
-          <div class="row-name">${u.email}</div>
-          <div class="row-sub" style="margin-top:2px;">${u.rol === 'admin' ? '● Admin' : '● Auditor'}</div>
-        </div>
-        ${u.id !== currentUser?.id
-          ? `<button onclick="removeUser('${u.id}')" style="padding:6px 10px;border:1px solid var(--border2);background:var(--bad-bg);color:var(--bad);border-radius:var(--radius-sm);font-size:11px;cursor:pointer;font-family:var(--font);">Eliminar</button>`
-          : '<span style="font-size:11px;color:var(--text3);">(yo)</span>'}
-      </div>`).join('');
+    document.getElementById('users-list').innerHTML = users.length
+      ? users.map(_userRowHtml).join('')
+      : '<div style="padding:20px;text-align:center;color:var(--text3);">Sin usuarios registrados.</div>';
   } catch (e) {
-    list.innerHTML = `<div style="padding:20px;text-align:center;color:var(--bad);">${e.message}</div>`;
+    document.getElementById('users-list').innerHTML = `<div style="padding:20px;color:var(--bad);">${e.message}</div>`;
+  }
+}
+
+async function createUser() {
+  const email    = (document.getElementById('new-user-email').value || '').trim();
+  const password = document.getElementById('new-user-pass').value || '';
+  const rol      = document.getElementById('new-user-rol').value;
+  const status   = document.getElementById('create-user-status');
+
+  if (!email || !password) { showToast('⚠️ Email y contraseña requeridos'); return; }
+  if (password.length < 6) { showToast('⚠️ La contraseña debe tener al menos 6 caracteres'); return; }
+
+  status.style.color = 'var(--text3)';
+  status.textContent = 'Creando usuario…';
+  try {
+    await sbCreateUser(email, password, rol);
+    status.style.color = 'var(--ok)';
+    status.textContent = '✓ Usuario creado correctamente';
+    document.getElementById('new-user-email').value = '';
+    document.getElementById('new-user-pass').value  = '';
+    const users = await sbGetUsuarios();
+    document.getElementById('users-list').innerHTML = users.map(_userRowHtml).join('');
+  } catch (e) {
+    status.style.color = 'var(--bad)';
+    status.textContent = '✗ ' + e.message;
   }
 }
 
 async function removeUser(id) {
-  showConfirm('¿Eliminar este usuario de la tabla de roles? (La cuenta de auth debe eliminarse desde el dashboard de Supabase.)', async () => {
+  showConfirm('¿Eliminar este usuario? Se eliminará su cuenta y acceso a la app.', async () => {
     try {
-      await sbDeleteUsuario(id);
+      await sbDeleteUserAuth(id);
       showToast('✓ Usuario eliminado');
-      await renderUserList();
+      renderUserList();
     } catch (e) {
       showToast('Error: ' + e.message);
     }
   });
+}
+
+async function renderDashboard() {
+  const panel = document.getElementById('admin-panel');
+  const secLabels = { chofer: 'Transportistas', tractor: 'Tractores', semi: 'Semirremolques', transporte: 'Transportes' };
+  const total = Object.values(db).reduce((s, arr) => s + arr.length, 0);
+
+  const countsHtml = Object.entries(secLabels).map(([k, label]) => `
+    <div style="flex:1;min-width:120px;padding:16px;background:var(--bg2);border:1px solid var(--border2);border-radius:var(--radius);text-align:center;">
+      <div style="font-size:28px;font-weight:700;color:var(--accent);">${(db[k] || []).length}</div>
+      <div style="font-size:11px;color:var(--text3);margin-top:4px;">${label}</div>
+    </div>`).join('');
+
+  panel.innerHTML = `
+    <div style="padding:16px;">
+      <div style="font-size:11px;color:var(--text3);font-family:var(--mono);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Total en base: ${total} registros</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px;">${countsHtml}</div>
+      <div style="font-size:11px;color:var(--text3);font-family:var(--mono);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Actividad por usuario</div>
+      <div id="dash-users"><div style="color:var(--text3);font-size:13px;">Cargando…</div></div>
+    </div>`;
+
+  try {
+    const log = await sbGetAuditLog(500);
+    if (!log.length) {
+      document.getElementById('dash-users').innerHTML = '<div style="color:var(--text3);font-size:13px;">Sin actividad registrada aún. Los registros aparecerán a medida que se carguen datos.</div>';
+      return;
+    }
+    const byUser = {};
+    log.forEach(row => {
+      const email = row.usuario_email || 'desconocido';
+      if (!byUser[email]) byUser[email] = { entidades: 0, documentos: 0, eliminadas: 0 };
+      if (row.accion === 'entidad_creada')   byUser[email].entidades++;
+      if (row.accion === 'entidad_eliminada') byUser[email].eliminadas++;
+      if (row.accion === 'documento_subido') byUser[email].documentos++;
+    });
+    document.getElementById('dash-users').innerHTML = Object.entries(byUser)
+      .sort((a, b) => (b[1].entidades + b[1].documentos) - (a[1].entidades + a[1].documentos))
+      .map(([email, s]) => `
+        <div class="entity-row" style="justify-content:space-between;">
+          <div class="row-name">${email}</div>
+          <div style="display:flex;gap:12px;font-size:11px;color:var(--text3);">
+            <span>${s.entidades} entidades</span>
+            <span>${s.documentos} docs</span>
+            ${s.eliminadas ? `<span style="color:var(--bad);">${s.eliminadas} eliminadas</span>` : ''}
+          </div>
+        </div>`).join('');
+  } catch (e) {
+    document.getElementById('dash-users').innerHTML = `<div style="color:var(--bad);">${e.message}</div>`;
+  }
+}
+
+async function renderAuditLog() {
+  const panel = document.getElementById('admin-panel');
+  panel.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text3);">Cargando…</div>';
+  try {
+    const log = await sbGetAuditLog(200);
+    if (!log.length) {
+      panel.innerHTML = '<div style="padding:40px;text-align:center;color:var(--text3);">Sin actividad registrada aún.</div>';
+      return;
+    }
+    const accionLabel = {
+      entidad_creada:   'Entidad creada',
+      entidad_editada:  'Entidad editada',
+      entidad_eliminada:'Entidad eliminada',
+      documento_subido: 'Doc subido',
+    };
+    const accionColor = {
+      entidad_creada:   'var(--ok)',
+      entidad_editada:  'var(--accent)',
+      entidad_eliminada:'var(--bad)',
+      documento_subido: 'var(--text2)',
+    };
+    const rows = log.map(row => {
+      const fecha = new Date(row.created_at).toLocaleString('es-AR', { day:'2-digit', month:'2-digit', year:'2-digit', hour:'2-digit', minute:'2-digit' });
+      const user  = (row.usuario_email || '—').split('@')[0];
+      const label = accionLabel[row.accion] || row.accion;
+      const color = accionColor[row.accion] || 'var(--text2)';
+      const doc   = [row.documento_nombre, row.filename].filter(Boolean).join(' · ');
+      return `<div style="padding:10px 16px;border-bottom:1px solid var(--border);display:grid;grid-template-columns:100px 80px 120px 1fr;gap:8px;align-items:start;font-size:11px;">
+        <div style="color:var(--text3);font-family:var(--mono);">${fecha}</div>
+        <div style="color:var(--text2);font-weight:500;">${user}</div>
+        <div style="color:${color};font-weight:600;">${label}</div>
+        <div style="color:var(--text);">${row.entidad_label || '—'}${doc ? `<div style="color:var(--text3);margin-top:2px;">${doc}</div>` : ''}</div>
+      </div>`;
+    }).join('');
+    panel.innerHTML = `
+      <div style="padding:10px 16px;background:var(--bg2);border-bottom:1px solid var(--border);display:grid;grid-template-columns:100px 80px 120px 1fr;gap:8px;font-size:10px;color:var(--text3);font-family:var(--mono);text-transform:uppercase;letter-spacing:1px;">
+        <div>Fecha</div><div>Usuario</div><div>Acción</div><div>Entidad / Archivo</div>
+      </div>
+      ${rows}
+      <div style="padding:12px 16px;font-size:11px;color:var(--text3);text-align:center;">Últimas ${log.length} acciones</div>`;
+  } catch (e) {
+    panel.innerHTML = `<div style="padding:20px;color:var(--bad);">${e.message}</div>`;
+  }
 }

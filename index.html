@@ -279,17 +279,18 @@
   <div style="overflow-y:auto;flex:1;" id="new-form-body"></div>
 </div>
 
-<!-- ══ USUARIOS (admin) ══ -->
+<!-- ══ PANEL ADMIN ══ -->
 <div class="screen" id="s-users">
   <div class="topbar">
     <button class="topbar-back" onclick="showScreen('s-home')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg></button>
-    <div class="topbar-info"><div class="topbar-title">Gestión de usuarios</div></div>
+    <div class="topbar-info"><div class="topbar-title">Panel Admin</div></div>
   </div>
-  <div class="list-header">Usuarios registrados</div>
-  <div id="users-list" style="flex:1;overflow-y:auto;"></div>
-  <div style="padding:12px 16px 20px;background:var(--bg2);border-top:1px solid var(--border);font-size:11px;color:var(--text3);line-height:1.6;">
-    Para agregar usuarios: creá la cuenta en <strong>Supabase Dashboard → Auth → Users</strong>, luego insertá en la tabla <code>usuarios</code> con su <code>id</code> y <code>rol</code>.
+  <div style="display:flex;border-bottom:1px solid var(--border);background:var(--bg2);flex-shrink:0;">
+    <button id="tab-usuarios"   onclick="switchAdminTab('usuarios')"   style="flex:1;padding:12px;border:none;border-bottom:2px solid var(--accent);background:transparent;color:var(--accent);font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font);">Usuarios</button>
+    <button id="tab-dashboard"  onclick="switchAdminTab('dashboard')"  style="flex:1;padding:12px;border:none;border-bottom:2px solid transparent;background:transparent;color:var(--text2);font-size:13px;font-weight:400;cursor:pointer;font-family:var(--font);">Dashboard</button>
+    <button id="tab-auditoria"  onclick="switchAdminTab('auditoria')"  style="flex:1;padding:12px;border:none;border-bottom:2px solid transparent;background:transparent;color:var(--text2);font-size:13px;font-weight:400;cursor:pointer;font-family:var(--font);">Auditoría</button>
   </div>
+  <div id="admin-panel" style="flex:1;overflow-y:auto;"></div>
 </div>
 
 <!-- ══ LIGHTBOX ══ -->

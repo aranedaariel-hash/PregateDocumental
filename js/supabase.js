@@ -74,7 +74,8 @@ async function sbSaveEntidad(entidad, section) {
     tipo:  section,
     label: entidad.label,
     sub:   entidad.sub || null,
-    actualizado_en: new Date().toISOString(),
+    actualizado_en:  new Date().toISOString(),
+    actualizado_por: currentUser?.id || null,
     ...(esVehiculo && {
       categoria: entidad.categoria || null,
       pbtc:      entidad.pbtc      || null,
@@ -87,7 +88,11 @@ async function sbSaveEntidad(entidad, section) {
     if (error) throw error;
     return entidad.id;
   } else {
-    const { data, error } = await getSB().from('entidades').insert(payload).select('id').single();
+    const { data, error } = await getSB()
+      .from('entidades')
+      .insert({ ...payload, creado_por: currentUser?.id || null })
+      .select('id')
+      .single();
     if (error) throw error;
     return data.id;
   }
@@ -102,6 +107,7 @@ async function sbSaveDocumento(entidadId, docNombre, docData) {
     filename:     docData.file || null,
     preview_url:  docData.previewUrl || null,
     storage_path: docData.storage_path || null,
+    subido_por:   currentUser?.id || null,
   };
   const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(docData.id);
   if (isUuid) {
@@ -169,6 +175,56 @@ async function sbGetUsuarios() {
 async function sbDeleteUsuario(id) {
   const { error } = await getSB().from('usuarios').delete().eq('id', id);
   if (error) throw error;
+}
+
+// ══ AUDIT LOG ══
+async function sbWriteAuditLog({ accion, entidad_id, entidad_label, entidad_tipo, documento_nombre, filename }) {
+  if (!currentUser) return;
+  await getSB().from('audit_log').insert({
+    usuario_id:      currentUser.id,
+    usuario_email:   currentUser.email,
+    accion,
+    entidad_id:      entidad_id      || null,
+    entidad_label:   entidad_label   || null,
+    entidad_tipo:    entidad_tipo    || null,
+    documento_nombre: documento_nombre || null,
+    filename:        filename        || null,
+  });
+}
+
+async function sbGetAuditLog(limit = 200) {
+  const { data, error } = await getSB()
+    .from('audit_log')
+    .select('*')
+    .order('created_at', { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return data || [];
+}
+
+// ══ GESTIÓN DE USUARIOS (admin via serverless) ══
+async function sbCreateUser(email, password, rol) {
+  const session = await sbGetSession();
+  const res = await fetch('/api/admin-users', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+    body: JSON.stringify({ action: 'create', email, password, rol })
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Error al crear usuario');
+  return data;
+}
+
+async function sbDeleteUserAuth(userId) {
+  const session = await sbGetSession();
+  const res = await fetch('/api/admin-users', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+    body: JSON.stringify({ action: 'delete', userId })
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Error al eliminar usuario');
+  return data;
 }
 
 // ══ VISTA PÚBLICA: cargar entidad sin auth ══

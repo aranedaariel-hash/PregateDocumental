@@ -206,6 +206,7 @@ async function saveNew(){
   try {
     const uuid = await sbSaveEntidad(entry, currentSection);
     entry.id = uuid; // reemplazar ID local por UUID de Supabase
+    sbWriteAuditLog({ accion: 'entidad_creada', entidad_id: entry.id, entidad_label: entry.label, entidad_tipo: currentSection }).catch(() => {});
     showToast('✓ Guardado correctamente');
   } catch(e) {
     db[currentSection] = db[currentSection].filter(x => x !== entry);
