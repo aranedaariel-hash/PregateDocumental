@@ -103,9 +103,12 @@ async function cnrtAutocompletar(){
   btnGuardar.style.display = 'none';
   btnCnrt.disabled = true;
 
+  const controller = new AbortController();
+  const timeoutId = setTimeout(()=>controller.abort(), 12000); // corte si CNRT cuelga
   try {
     const url = `${window.location.origin}/api/cnrt-proxy?base=equipos&path=${encodeURIComponent('/equipos?dominios='+pat)}`;
-    const res = await fetch(url);
+    const res = await fetch(url, { signal: controller.signal });
+    clearTimeout(timeoutId);
     const data = await res.json();
 
     btnCnrt.disabled = false;
@@ -154,11 +157,15 @@ async function cnrtAutocompletar(){
     btnGuardar.style.display = 'flex';
 
   } catch(e) {
+    clearTimeout(timeoutId);
     btnCnrt.disabled = false;
+    const isTimeout = (e.name === 'AbortError');
     statusEl.style.background = 'var(--bad-bg)';
     statusEl.style.border = '1px solid rgba(239,68,68,0.2)';
     statusEl.style.color = 'var(--bad)';
-    statusEl.innerHTML = `✗ Error al consultar CNRT. Completá los datos manualmente.`;
+    statusEl.innerHTML = isTimeout
+      ? `⏱ La consulta a CNRT tardó demasiado. Completá los datos manualmente.`
+      : `✗ Error al consultar CNRT. Completá los datos manualmente.`;
     manualEl.style.display = 'block';
     btnGuardar.style.display = 'flex';
   }
@@ -215,4 +222,106 @@ async function saveNew(){
     return;
   }
   setTimeout(()=>{ openEntity(entry.id); },600);
+}
+
+// ══ EDITAR ENTIDAD — #1 ══
+let editEntityId = null;
+
+function goEdit(){
+  const e = (db[currentSection]||[]).find(x=>x.id===currentEntityId);
+  if(!e){ showToast('No se encontró la entidad'); return; }
+  editEntityId = e.id;
+  document.getElementById('new-title').textContent = 'Editar · ' + SECTION_LABELS[currentSection];
+  const body = document.getElementById('new-form-body');
+  const esc = s => (s==null?'':String(s)).replace(/"/g,'&quot;');
+  const lblStyle = 'font-size:10px;color:var(--text3);font-family:var(--mono);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;';
+  const okBtn = `<button class="btn-primary" style="margin-top:8px;" onclick="saveEdit()">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>Guardar cambios</button>`;
+
+  if(currentSection==='chofer'){
+    const [apRaw, nmRaw] = (e.label||'').split(',');
+    const ap = (apRaw||'').trim(), nm = (nmRaw||'').trim();
+    const sub = e.sub||'';
+    let dni='', empresa='';
+    const dniM = sub.match(/DNI\s+([\d.]+)/i); if(dniM) dni = dniM[1].replace(/\./g,'');
+    const partes = sub.split('·').map(s=>s.trim()).filter(Boolean);
+    if(partes.length>1) empresa = partes.slice(1).join(' · ');
+    body.innerHTML = `<div class="form-section"><div class="form-label">Datos del chofer</div>
+      <input class="form-input" id="nf-apellido" placeholder="Apellido" style="text-transform:uppercase;" value="${esc(ap)}">
+      <input class="form-input" id="nf-nombre" placeholder="Nombre" style="text-transform:uppercase;" value="${esc(nm)}">
+      <input class="form-input" id="nf-dni" placeholder="DNI" type="number" value="${esc(dni)}">
+      <input class="form-input" id="nf-empresa" placeholder="Empresa / Transportista" style="text-transform:uppercase;margin-bottom:0;" value="${esc(empresa)}">
+    </div>${okBtn}`;
+  } else if(currentSection==='transporte'){
+    let cuit='';
+    const cuitM = (e.sub||'').match(/CUIT\s+([\d.\-]+)/i); if(cuitM) cuit = cuitM[1];
+    body.innerHTML = `<div class="form-section"><div class="form-label">Datos de la empresa</div>
+      <input class="form-input" id="nf-empresa" placeholder="Nombre de la empresa" style="text-transform:uppercase;" value="${esc(e.label)}">
+      <input class="form-input" id="nf-cuit" placeholder="CUIT" style="margin-bottom:0;" value="${esc(cuit)}">
+    </div>${okBtn}`;
+  } else {
+    const lbl = currentSection==='tractor' ? 'Tractor' : 'Semirremolque';
+    const subParts = (e.sub||'').split('·').map(s=>s.trim());
+    const marca = subParts[0]||'', anio = subParts[1]||'';
+    body.innerHTML = `<div class="form-section"><div class="form-label">Datos del ${lbl}</div>
+      <input class="form-input" id="nf-patente" placeholder="PATENTE"
+        style="text-transform:uppercase;letter-spacing:2px;font-size:16px;font-weight:600;margin-bottom:10px;"
+        oninput="this.value=this.value.toUpperCase().replace(/\\s/g,'')" value="${esc(e.label)}">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+        <div><div style="${lblStyle}">Marca</div><input class="form-input" id="nf-marca" placeholder="—" style="text-transform:uppercase;margin-bottom:0;" value="${esc(marca)}"></div>
+        <div><div style="${lblStyle}">Año modelo</div><input class="form-input" id="nf-anio" placeholder="—" type="number" style="margin-bottom:0;" value="${esc(anio)}"></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:0;">
+        <div><div style="${lblStyle}">Conf. ejes</div><input class="form-input" id="nf-ejes" placeholder="—" style="margin-bottom:0;font-family:var(--mono);" value="${esc(e.ejes)}"></div>
+        <div><div style="${lblStyle}">Categoría</div><input class="form-input" id="nf-categoria" placeholder="—" style="margin-bottom:0;font-family:var(--mono);font-weight:600;font-size:16px;text-align:center;" value="${esc(e.categoria)}"></div>
+        <div><div style="${lblStyle}">PBTC (ton)</div><input class="form-input" id="nf-pbtc" placeholder="—" type="number" style="margin-bottom:0;font-family:var(--mono);" value="${esc(e.pbtc)}"></div>
+      </div>
+      <input type="hidden" id="nf-modelo" value="">
+    </div>${okBtn}`;
+  }
+  showScreen('s-new');
+}
+
+async function saveEdit(){
+  const e = (db[currentSection]||[]).find(x=>x.id===editEntityId);
+  if(!e){ showToast('No se encontró la entidad'); return; }
+  const gv = id => (document.getElementById(id)?.value||'').trim();
+
+  if(currentSection==='chofer'){
+    const ap=gv('nf-apellido').toUpperCase(), nm=gv('nf-nombre').toUpperCase();
+    const dni=gv('nf-dni'), emp=gv('nf-empresa').toUpperCase();
+    if(!ap||!nm||!dni){ showToast('⚠️ Apellido, nombre y DNI son obligatorios'); return; }
+    const dniF=dni.replace(/\B(?=(\d{3})+(?!\d))/g,'.');
+    e.label=`${ap}, ${nm}`;
+    e.sub=`DNI ${dniF}${emp?' · '+emp:''}`;
+  } else if(currentSection==='transporte'){
+    const emp=gv('nf-empresa').toUpperCase(), cuit=gv('nf-cuit');
+    if(!emp){ showToast('⚠️ El nombre es obligatorio'); return; }
+    e.label=emp;
+    e.sub=cuit?`CUIT ${cuit}`:'';
+  } else {
+    const pat=gv('nf-patente').toUpperCase();
+    if(!pat){ showToast('⚠️ La patente es obligatoria'); return; }
+    const marca=gv('nf-marca').toUpperCase(), anio=gv('nf-anio');
+    const ejes=gv('nf-ejes'), categoria=gv('nf-categoria').toUpperCase(), pbtc=gv('nf-pbtc');
+    e.label=pat;
+    e.sub=[marca,anio].filter(Boolean).join(' · ');
+    e.categoria=categoria||'';
+    e.pbtc=pbtc||'';
+    e.ejes=ejes||'';
+  }
+
+  try {
+    await sbSaveEntidad(e, currentSection); // update por UUID
+    sbWriteAuditLog({ accion:'entidad_editada', entidad_id:e.id, entidad_label:e.label, entidad_tipo:currentSection }).catch(()=>{});
+    showToast('✓ Cambios guardados');
+  } catch(err){
+    showToast('Error al guardar: ' + err.message);
+    return;
+  }
+  if(typeof updateCounts==='function') updateCounts();
+  localStorage.setItem('dct-db', JSON.stringify(db));
+  const id = e.id;
+  editEntityId = null;
+  setTimeout(()=>{ openEntity(id); }, 300);
 }

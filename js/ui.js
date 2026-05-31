@@ -3,10 +3,10 @@ let isDark = localStorage.getItem('dct-theme') !== 'light';
 
 function applyTheme(){
   document.documentElement.classList.toggle('light',!isDark);
-  const ic = document.getElementById('theme-icon');
-  ic.innerHTML = isDark
+  const html = isDark
     ? '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>'
     : '<circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>';
+  document.querySelectorAll('.theme-icon').forEach(ic => { ic.innerHTML = html; });
 }
 function toggleTheme(){ isDark=!isDark; localStorage.setItem('dct-theme',isDark?'dark':'light'); applyTheme(); }
 applyTheme();
@@ -17,24 +17,112 @@ function showScreen(id){
   document.getElementById(id).classList.add('active');
 }
 
-// ══ COUNTS ══
+// ══ ESTADO DE VENCIMIENTO ══
+const WARN_DAYS = 30; // umbral "próximo a vencer"
+
+// Parseo date-only en hora LOCAL. new Date('YYYY-MM-DD') parsea en UTC y, combinado
+// con setHours local, corre la fecha un día en zonas con offset negativo (AR = UTC-3).
+function _hoy0(){ const t=new Date(); t.setHours(0,0,0,0); return t; }
+function _parseVto(s){
+  if(!s) return null;
+  const p = String(s).split('-').map(Number);
+  if(p.length < 3 || !p[0]) return null;
+  return new Date(p[0], p[1]-1, p[2]); // medianoche local
+}
+function _diasHasta(vto){
+  const exp = _parseVto(vto);
+  if(!exp) return null;
+  return Math.round((exp - _hoy0()) / 86400000);
+}
+
 function isVencido(vto, docId){
   if(!vto) return true;
   if(docId && NEVER_EXPIRE_DOCS.has(docId)) return false;
-  // Compare date-only (strip time) so same day = NOT vencido
-  const today = new Date(); today.setHours(0,0,0,0);
-  const exp   = new Date(vto); exp.setHours(0,0,0,0);
-  return exp < today;
+  const dias = _diasHasta(vto);
+  return dias === null ? true : dias < 0;
 }
+
+// docState: 'sin-cargar' | 'vencido' | 'pronto' | 'ok'
+function docState(data, docId){
+  if(!data) return 'sin-cargar';
+  if(docId && NEVER_EXPIRE_DOCS.has(docId)) return 'ok';
+  if(!data.vto) return 'vencido';
+  const dias = _diasHasta(data.vto);
+  if(dias === null || dias < 0) return 'vencido';
+  if(dias <= WARN_DAYS)         return 'pronto';
+  return 'ok';
+}
+function diasParaVencer(vto){ return _diasHasta(vto); }
+
+// Estado de la entidad mirando solo los documentos obligatorios: 'ok' | 'pronto' | 'bad'
 function entityStatus(e,sec){
-  return DOCS[sec].filter(d=>d.required).some(d=>!e.docs[d.id]||isVencido(e.docs[d.id].vto, d.id))?'bad':'ok';
+  const estados = DOCS[sec].filter(d=>d.required).map(d=>docState(e.docs[d.id], d.id));
+  if(estados.some(s=>s==='vencido'||s==='sin-cargar')) return 'bad';
+  if(estados.some(s=>s==='pronto')) return 'pronto';
+  return 'ok';
 }
+function statusRank(st){ return st==='bad'?0 : st==='pronto'?1 : 2; }
+
 function updateCounts(){
   ['chofer','tractor','semi','transporte'].forEach(s=>{
-    const n=db[s]?db[s].length:0;
-    const el=document.getElementById('cnt-'+s);
-    if(el) el.textContent=n+' '+(n===1?'registro':'registros');
+    const arr = db[s] || [];
+    const n   = arr.length;
+    const el  = document.getElementById('cnt-'+s);
+    if(el) el.textContent = n+' '+(n===1?'registro':'registros');
+    // sub-línea con vencidos / por vencer (#12)
+    let vencidos=0, pronto=0;
+    arr.forEach(e=>{ const st=entityStatus(e,s); if(st==='bad') vencidos++; else if(st==='pronto') pronto++; });
+    if(el){
+      let sub = document.getElementById('vto-'+s);
+      if(!sub){ sub=document.createElement('div'); sub.id='vto-'+s; sub.className='sec-vto-line'; el.parentElement.appendChild(sub); }
+      if(n===0){ sub.innerHTML=''; }
+      else if(vencidos||pronto){
+        let parts=[];
+        if(vencidos) parts.push('<span class="vto-bad">'+vencidos+' vencido'+(vencidos!==1?'s':'')+'</span>');
+        if(pronto)   parts.push('<span class="vto-warn">'+pronto+' por vencer</span>');
+        sub.innerHTML = parts.join('<span class="vto-sep">·</span>');
+      } else {
+        sub.innerHTML = '<span class="vto-ok">✓ al día</span>';
+      }
+    }
   });
+  renderVencBanner();
+}
+
+// Banner resumen en el home (#6)
+function renderVencBanner(){
+  const home = document.getElementById('s-home');
+  if(!home) return;
+  let vencidos=0, pronto=0, faltan=0;
+  ['chofer','tractor','semi','transporte'].forEach(s=>{
+    (db[s]||[]).forEach(e=>{
+      DOCS[s].forEach(d=>{
+        const st = docState(e.docs[d.id], d.id);
+        if(st==='sin-cargar'){ if(d.required) faltan++; }
+        else if(st==='vencido') vencidos++;
+        else if(st==='pronto')  pronto++;
+      });
+    });
+  });
+  let banner = document.getElementById('venc-banner');
+  const anchor = home.querySelector('.section-cards');
+  if(!banner){
+    banner = document.createElement('div');
+    banner.id = 'venc-banner';
+    if(anchor) anchor.parentElement.insertBefore(banner, anchor);
+    else home.appendChild(banner);
+  }
+  if(!vencidos && !pronto && !faltan){
+    banner.className = 'venc-banner venc-banner-ok';
+    banner.innerHTML = '<span class="vb-ico">✓</span><span>Toda la documentación está al día</span>';
+    return;
+  }
+  banner.className = 'venc-banner venc-banner-alert';
+  let parts=[];
+  if(vencidos) parts.push('<strong>'+vencidos+'</strong> vencido'+(vencidos!==1?'s':''));
+  if(pronto)   parts.push('<strong>'+pronto+'</strong> por vencer');
+  if(faltan)   parts.push('<strong>'+faltan+'</strong> sin cargar');
+  banner.innerHTML = '<span class="vb-ico">⚠️</span><span>'+parts.join(' · ')+'</span>';
 }
 
 // ══ SYNC ══
@@ -47,11 +135,14 @@ async function syncFromDrive(){
 // ══ SECTION LIST ══
 function openSection(sec){
   currentSection=sec;
+  _listQuery='';
+  _listFilter='todos';
   document.getElementById('list-title').textContent=SECTION_LABELS[sec];
   document.getElementById('list-sub-header').textContent=
     sec==='chofer'?'Buscar por nombre o DNI':sec==='transporte'?'Buscar por empresa':'Buscar por patente';
-  document.getElementById('list-search').value='';
-  renderEntityList(db[sec]||[]);
+  const si=document.getElementById('list-search'); if(si) si.value='';
+  updateFilterChipsUI();
+  applyListView();
   showScreen('s-list');
 }
 
@@ -70,9 +161,16 @@ function renderEntityList(list){
   const empty=document.getElementById('empty-list');
   if(!list.length){ el.innerHTML=''; empty.style.display='flex'; return; }
   empty.style.display='none';
-  el.innerHTML=list.map(e=>{
+  const sorted=list.slice().sort((a,b)=>{
+    const ra=statusRank(entityStatus(a,currentSection)), rb=statusRank(entityStatus(b,currentSection));
+    if(ra!==rb) return ra-rb;
+    return (a.label||'').localeCompare(b.label||'');
+  });
+  el.innerHTML=sorted.map(e=>{
     const st=entityStatus(e,currentSection);
-    const badge=st==='ok'?'<span class="badge badge-ok">Vigente</span>':'<span class="badge badge-bad">Vencido</span>';
+    const badge=st==='ok'?'<span class="badge badge-ok">Vigente</span>'
+               :st==='pronto'?'<span class="badge badge-warn">Por vencer</span>'
+               :'<span class="badge badge-bad">Vencido</span>';
     const isVehiculo = currentSection==='tractor'||currentSection==='semi';
     const catBadge = isVehiculo && e.categoria
       ? `<span style="font-size:10px;font-family:var(--mono);font-weight:700;padding:2px 7px;border-radius:6px;background:rgba(245,158,11,0.15);color:#f59e0b;margin-left:6px;letter-spacing:1px;">CAT ${e.categoria}</span>`
@@ -89,10 +187,22 @@ function renderEntityList(list){
 }
 
 function normalizeSearch(s){ return (s||'').toLowerCase().replace(/\./g,'').trim(); }
-function filterEntities(q){
-  const nq = normalizeSearch(q);
-  const filtered=(db[currentSection]||[]).filter(e=>!nq||normalizeSearch(e.label).includes(nq)||normalizeSearch(e.sub||'').includes(nq));
-  renderEntityList(filtered);
+let _listQuery='';
+let _listFilter='todos'; // 'todos' | 'pronto' | 'vencidos'
+function filterEntities(q){ _listQuery=q; applyListView(); }
+function setListFilter(f){ _listFilter=f; updateFilterChipsUI(); applyListView(); }
+function updateFilterChipsUI(){
+  ['todos','pronto','vencidos'].forEach(f=>{
+    const b=document.getElementById('lf-'+f);
+    if(b) b.classList.toggle('active', f===_listFilter);
+  });
+}
+function applyListView(){
+  const nq = normalizeSearch(_listQuery);
+  let list = (db[currentSection]||[]).filter(e=>!nq||normalizeSearch(e.label).includes(nq)||normalizeSearch(e.sub||'').includes(nq));
+  if(_listFilter==='vencidos')    list = list.filter(e=>entityStatus(e,currentSection)==='bad');
+  else if(_listFilter==='pronto') list = list.filter(e=>entityStatus(e,currentSection)==='pronto');
+  renderEntityList(list);
 }
 
 // ══ DETAIL ══
@@ -143,21 +253,24 @@ async function deleteEntity(){
   if(!e) return;
   showConfirm(`¿Eliminar <strong>${e.label}</strong> y toda su documentación?`, async ()=>{
     showToast('Eliminando…');
-    // 1. Remove from db first
+    // 1. Eliminar en Supabase PRIMERO (cascade borra documentos). Si falla (p.ej. RLS), abortar.
+    try {
+      await sbDeleteEntidad(e.id);
+    } catch(err){
+      console.warn('Error al eliminar en Supabase', err);
+      showToast('No se pudo eliminar: ' + (err.message || 'sin permisos'));
+      return; // no tocar el estado local si el server rechazó
+    }
+    // 2. Registrar en el log (best-effort) recién después del borrado OK
+    sbWriteAuditLog({ accion: 'entidad_eliminada', entidad_id: e.id, entidad_label: e.label, entidad_tipo: currentSection }).catch(()=>{});
+    // 3. Quitar localmente
     db[currentSection] = (db[currentSection]||[]).filter(x=>x.id!==currentEntityId);
     localStorage.setItem('dct-db', JSON.stringify(db));
     currentEntityId = null;
     updateCounts();
-
-    // 2. Eliminar en Supabase (cascade borra documentos)
-    try {
-      await sbWriteAuditLog({ accion: 'entidad_eliminada', entidad_id: e.id, entidad_label: e.label, entidad_tipo: currentSection });
-      await sbDeleteEntidad(e.id);
-    } catch(err){ console.warn('Error al eliminar en Supabase', err); }
-
     showToast('✓ Eliminado correctamente');
     showScreen('s-list');
-    renderEntityList(db[currentSection]||[]);
+    applyListView();
   });
 }
 
@@ -208,18 +321,25 @@ function renderDetail(){
 }
 
 function renderDocCard(doc,data){
+  const st = docState(data, doc.id);
   const neverExpires = NEVER_EXPIRE_DOCS.has(doc.id);
-  const vencido=!data||(neverExpires ? false : isVencido(data.vto, doc.id));
-  const dot=vencido?'dot-bad':'dot-ok';
-  const badge = neverExpires && data
-    ? `<span class="badge badge-ok">Sin vencimiento</span>`
-    : vencido
-      ? `<span class="badge badge-bad">${data?'Venció '+formatVto(data.vto):'Sin cargar'}</span>`
-      : `<span class="badge badge-ok">Vence ${formatVto(data.vto)}</span>`;
+  const dot = st==='ok'?'dot-ok':st==='pronto'?'dot-warn':'dot-bad';
+  let badge;
+  if(st==='sin-cargar')   badge = `<span class="badge badge-bad">Sin cargar</span>`;
+  else if(neverExpires)   badge = `<span class="badge badge-ok">Sin vencimiento</span>`;
+  else if(st==='vencido') badge = `<span class="badge badge-bad">Venció ${formatVto(data.vto)}</span>`;
+  else if(st==='pronto'){
+    const d = diasParaVencer(data.vto);
+    badge = `<span class="badge badge-warn">Vence en ${d} día${d!==1?'s':''}</span>`;
+  } else                  badge = `<span class="badge badge-ok">Vence ${formatVto(data.vto)}</span>`;
   const driveBtn = data && data.storage_path
     ? `<button class="btn-sm btn-sm-accent" onclick="openPdf('${data.storage_path}')">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
         Ver PDF</button>` : '';
+  const editVtoBtn = (data && !neverExpires)
+    ? `<button class="btn-sm" onclick="editDocVto('${doc.id}','${doc.name}')">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        Editar fecha</button>` : '';
   return `<div class="doc-card">
     <div class="doc-top"><div class="doc-left"><div class="status-dot ${dot}"></div><div class="doc-name">${doc.name}</div></div>${badge}</div>
     ${data?`<div class="doc-file">${data.file}</div>`:''}
@@ -228,7 +348,50 @@ function renderDocCard(doc,data){
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
         ${data?'Renovar':'Cargar'}</button>
       ${driveBtn}
+      ${editVtoBtn}
     </div></div>`;
+}
+
+// ══ EDITAR VENCIMIENTO (solo metadata, sin re-subir archivo) — #2 ══
+function editDocVto(docId, docName){
+  const e = (db[currentSection]||[]).find(x=>x.id===currentEntityId);
+  if(!e || !e.docs[docId]) return;
+  const cur = e.docs[docId].vto || '';
+  let modal = document.getElementById('editvto-modal');
+  if(!modal){
+    modal = document.createElement('div');
+    modal.id = 'editvto-modal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:200;display:flex;align-items:center;justify-content:center;padding:24px;';
+    document.body.appendChild(modal);
+  }
+  modal.innerHTML = `<div style="background:var(--bg2);border:1px solid var(--border2);border-radius:var(--radius);padding:24px;max-width:340px;width:100%;">
+    <div style="font-size:10px;color:var(--text3);font-family:var(--mono);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Editar vencimiento</div>
+    <div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:16px;">${docName}</div>
+    <label style="font-size:12px;color:var(--text2);display:block;margin-bottom:6px;">Nueva fecha de vencimiento</label>
+    <input type="date" id="editvto-input" value="${cur}" class="form-input" style="margin-bottom:18px;">
+    <div style="display:flex;gap:10px;">
+      <button onclick="document.getElementById('editvto-modal').style.display='none'" style="flex:1;padding:10px;border-radius:var(--radius-sm);border:1px solid var(--border2);background:var(--bg3);color:var(--text2);font-size:13px;cursor:pointer;font-family:var(--font);">Cancelar</button>
+      <button id="editvto-ok" style="flex:1;padding:10px;border-radius:var(--radius-sm);border:none;background:var(--accent);color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font);">Guardar</button>
+    </div>
+  </div>`;
+  modal.style.display = 'flex';
+  document.getElementById('editvto-ok').onclick = async ()=>{
+    const nv = document.getElementById('editvto-input').value;
+    if(!nv){ showToast('⚠️ Ingresá una fecha'); return; }
+    modal.style.display = 'none';
+    const docData = Object.assign({}, e.docs[docId], { vto: nv });
+    e.docs[docId] = docData;
+    updateCounts();
+    renderDetail();
+    try {
+      const newId = await sbSaveDocumento(e.id, docId, docData); // update por UUID
+      e.docs[docId].id = newId;
+      sbWriteAuditLog({ accion: 'documento_editado', entidad_id: e.id, entidad_label: e.label, entidad_tipo: currentSection, documento_nombre: docName, filename: docData.file }).catch(()=>{});
+      showToast('✓ Vencimiento actualizado');
+    } catch(err){
+      showToast('Error al guardar: ' + err.message);
+    }
+  };
 }
 
 // ══ TOAST ══
@@ -263,10 +426,14 @@ function renderVerScreen(sec, entityId){
   const allDocs = docs.filter(d=>d.required);
   const optDocs = docs.filter(d=>!d.required && e.docs[d.id]);
   const allVisible = [...allDocs, ...optDocs];
-  const anyBad = allVisible.some(d=>!e.docs[d.id]||isVencido(e.docs[d.id].vto, d.id));
+  const estadosVer = allVisible.map(d=>docState(e.docs[d.id], d.id));
+  const anyBad = estadosVer.some(s=>s==='vencido'||s==='sin-cargar');
+  const anyPronto = estadosVer.some(s=>s==='pronto');
   const statusHtml = anyBad
     ? `<div class="ver-status ver-status-bad">🔴 Documentación vencida o incompleta</div>`
-    : `<div class="ver-status ver-status-ok">🟢 Documentación al día</div>`;
+    : anyPronto
+      ? `<div class="ver-status ver-status-warn">🟡 Documentación próxima a vencer</div>`
+      : `<div class="ver-status ver-status-ok">🟢 Documentación al día</div>`;
 
   const secLabel = {chofer:'Transportista',tractor:'Tractor',semi:'Semirremolque',transporte:'Empresa de transporte'}[sec]||sec;
 
@@ -279,14 +446,18 @@ function renderVerScreen(sec, entityId){
 
   allVisible.forEach(doc=>{
     const data = e.docs[doc.id];
+    const stv = docState(data, doc.id);
     const neverExpires = NEVER_EXPIRE_DOCS.has(doc.id);
-    const vencido = !data || (neverExpires ? false : isVencido(data.vto, doc.id));
-    const dot = vencido ? 'dot-bad':'dot-ok';
-    const badge = neverExpires && data
-      ? `<span class="badge badge-ok">Sin vencimiento</span>`
-      : vencido
-        ? `<span class="badge badge-bad">${data?'Venció '+formatVto(data.vto):'Sin cargar'}</span>`
-        : `<span class="badge badge-ok">Vence ${formatVto(data.vto)}</span>`;
+    const dot = stv==='ok'?'dot-ok':stv==='pronto'?'dot-warn':'dot-bad';
+    const badge = stv==='sin-cargar'
+      ? `<span class="badge badge-bad">Sin cargar</span>`
+      : neverExpires
+        ? `<span class="badge badge-ok">Sin vencimiento</span>`
+        : stv==='vencido'
+          ? `<span class="badge badge-bad">Venció ${formatVto(data.vto)}</span>`
+          : stv==='pronto'
+            ? `<span class="badge badge-warn">Vence ${formatVto(data.vto)}</span>`
+            : `<span class="badge badge-ok">Vence ${formatVto(data.vto)}</span>`;
     const driveBtn = data && data.storage_path
       ? `<button onclick="openPdf('${data.storage_path}')" class="ver-btn ver-btn-accent">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
@@ -337,21 +508,25 @@ async function downloadEntidadZip() {
 
   showToast('Preparando ZIP…');
   const zip = new JSZip();
+  let done = 0, failed = 0;
   for (const [docId, docData] of paths) {
+    done++;
+    showToast(`Descargando ${done}/${paths.length}…`);
     try {
       const url = await sbGetSignedUrl(docData.storage_path);
       const res = await fetch(url);
       const blob = await res.blob();
       zip.file(docData.file || `${docId}.pdf`, blob);
-    } catch (err) { console.warn('No se pudo incluir', docId, err); }
+    } catch (err) { failed++; console.warn('No se pudo incluir', docId, err); }
   }
+  showToast('Comprimiendo…');
   const content = await zip.generateAsync({ type: 'blob' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(content);
   a.download = `${e.label.replace(/[^a-zA-Z0-9]/g, '_')}_${currentSection}.zip`;
   a.click();
   URL.revokeObjectURL(a.href);
-  showToast('✓ ZIP descargado');
+  showToast(failed ? `✓ ZIP descargado (${failed} omitido${failed!==1?'s':''})` : '✓ ZIP descargado');
 }
 
 // ══ PANEL ADMIN ══
@@ -514,12 +689,14 @@ async function renderAuditLog() {
       entidad_editada:  'Entidad editada',
       entidad_eliminada:'Entidad eliminada',
       documento_subido: 'Doc subido',
+      documento_editado:'Vto. editado',
     };
     const accionColor = {
       entidad_creada:   'var(--ok)',
       entidad_editada:  'var(--accent)',
       entidad_eliminada:'var(--bad)',
       documento_subido: 'var(--text2)',
+      documento_editado:'var(--accent)',
     };
     const rows = log.map(row => {
       const fecha = new Date(row.created_at).toLocaleString('es-AR', { day:'2-digit', month:'2-digit', year:'2-digit', hour:'2-digit', minute:'2-digit' });

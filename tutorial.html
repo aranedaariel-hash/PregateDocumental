@@ -1,0 +1,832 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tutorial — Mis Inspecciones · Control documental · SGL</title>
+<style>
+  :root{
+    --navy:#0f3460;
+    --navy2:#103c70;
+    --blue:#1565c0;
+    --accent:#3b82f6;
+    --accent-l:#e8f0fc;
+    --accent-ll:#f4f8fe;
+    --green:#1b7a3d;
+    --green-l:#e8f5e9;
+    --amber:#b07a00;
+    --amber-l:#fff8e1;
+    --red:#c0392b;
+    --red-l:#fdecea;
+    --purple:#6a1b9a;
+    --purple-l:#f3e5f5;
+    --gray-l:#f4f7fb;
+    --border:#dbe4f0;
+    --text:#16243a;
+    --text2:#46586f;
+    --text3:#7a8aa3;
+    --card:#ffffff;
+    --radius:12px;
+    --shadow:0 2px 12px rgba(15,52,96,.09);
+    --mono:'Consolas','Courier New',monospace;
+    --ff:'Segoe UI',system-ui,sans-serif;
+  }
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+  html{scroll-behavior:smooth;}
+  body{font-family:var(--ff);color:var(--text);background:#eef2f8;font-size:15px;line-height:1.55;}
+
+  /* ── TOP NAV ── */
+  .topnav{
+    position:sticky;top:0;z-index:100;
+    background:var(--navy);
+    display:flex;align-items:center;gap:14px;
+    padding:0 24px;height:56px;
+    box-shadow:0 2px 12px rgba(0,0,0,.22);
+  }
+  .topnav-logo{font-size:13px;font-weight:700;color:#fff;letter-spacing:.04em;opacity:.92;}
+  .topnav-title{font-size:15px;font-weight:600;color:#fff;margin-left:4px;}
+  .topnav-sep{flex:1;}
+  .topnav a{color:rgba(255,255,255,.7);text-decoration:none;font-size:13px;padding:4px 10px;border-radius:6px;transition:background .15s;}
+  .topnav a:hover{background:rgba(255,255,255,.12);color:#fff;}
+
+  /* ── HERO ── */
+  .hero{
+    background:radial-gradient(ellipse 80% 80% at 80% 0%, rgba(74,144,226,.22), transparent),
+               linear-gradient(135deg,var(--navy) 0%,var(--navy2) 55%,var(--blue) 100%);
+    color:#fff;padding:52px 24px 44px;text-align:center;
+  }
+  .hero-tag{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+    background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);border-radius:20px;padding:4px 14px;margin-bottom:18px;color:#fff;}
+  .hero h1{font-size:clamp(24px,4vw,36px);font-weight:700;margin-bottom:12px;line-height:1.2;color:#fff;}
+  .hero p{font-size:16px;opacity:.88;max-width:580px;margin:0 auto 28px;color:#fff;}
+  .hero-pills{display:flex;flex-wrap:wrap;justify-content:center;gap:10px;}
+  .pill{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);border-radius:20px;
+    padding:6px 16px;font-size:13px;font-weight:500;color:#fff;}
+
+  /* ── LAYOUT ── */
+  .wrap{max-width:880px;margin:0 auto;padding:0 16px;}
+  .toc-wrap{max-width:880px;margin:0 auto;padding:32px 16px 0;}
+
+  /* ── TOC ── */
+  .toc{background:var(--card);border-radius:var(--radius);border:1px solid var(--border);
+    padding:24px 28px;box-shadow:var(--shadow);margin-bottom:32px;}
+  .toc-title{font-size:13px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:16px;}
+  .toc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:4px 16px;}
+  .toc a{display:flex;align-items:center;gap:8px;padding:6px 4px;color:var(--blue);text-decoration:none;
+    font-size:13px;border-radius:6px;transition:background .12s;}
+  .toc a:hover{background:var(--accent-ll);}
+  .toc-num{width:20px;height:20px;border-radius:50%;background:var(--accent-l);color:var(--blue);
+    font-size:10px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;}
+
+  /* ── SECTIONS ── */
+  .section{margin-bottom:40px;}
+  .section-head{
+    display:flex;align-items:center;gap:12px;
+    background:var(--navy);color:#fff;
+    border-radius:var(--radius) var(--radius) 0 0;
+    padding:16px 22px;
+  }
+  .section-head .ico{
+    width:36px;height:36px;border-radius:10px;
+    background:rgba(255,255,255,.18);
+    display:flex;align-items:center;justify-content:center;
+    font-size:18px;flex-shrink:0;
+  }
+  .section-num{font-size:11px;font-weight:700;opacity:.72;text-transform:uppercase;letter-spacing:.05em;}
+  .section-title{font-size:16px;font-weight:700;}
+  .section-body{
+    background:var(--card);border:1px solid var(--border);border-top:none;
+    border-radius:0 0 var(--radius) var(--radius);
+    padding:24px 24px 28px;box-shadow:var(--shadow);
+  }
+
+  /* ── STEPS ── */
+  .steps{display:flex;flex-direction:column;gap:0;}
+  .step{display:flex;gap:16px;padding:16px 0;border-bottom:1px solid var(--border);}
+  .step:last-child{border-bottom:none;}
+  .step-n{
+    width:28px;height:28px;border-radius:50%;background:var(--accent);color:#fff;
+    font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;
+    margin-top:1px;
+  }
+  .step-body{flex:1;}
+  .step-title{font-size:14px;font-weight:700;color:var(--text);margin-bottom:4px;}
+  .step-desc{font-size:13px;color:var(--text2);line-height:1.55;}
+
+  /* ── CARDS GRID ── */
+  .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px;margin-top:16px;}
+  .card{background:var(--gray-l);border:1px solid var(--border);border-radius:10px;padding:16px 18px;}
+  .card-icon{font-size:22px;margin-bottom:8px;}
+  .card-title{font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px;}
+  .card-desc{font-size:12px;color:var(--text2);line-height:1.5;}
+  .card.blue{background:var(--accent-ll);border-color:#c3d9f5;}
+  .card.green{background:var(--green-l);border-color:#c8e6c9;}
+  .card.amber{background:var(--amber-l);border-color:#ffe082;}
+  .card.purple{background:var(--purple-l);border-color:#ce93d8;}
+
+  /* ── FLOW ── */
+  .flow{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:18px 0;}
+  .flow-box{
+    padding:8px 14px;border-radius:8px;font-size:12px;font-weight:600;
+    background:var(--accent-l);color:var(--blue);border:1px solid #c3d9f5;
+    text-align:center;min-width:90px;
+  }
+  .flow-box.cnrt{background:#e8f5e9;color:#1b5e20;border-color:#a5d6a7;}
+  .flow-box.cloud{background:#f3e5f5;color:#6a1b9a;border-color:#ce93d8;}
+  .flow-arrow{color:var(--text3);font-size:18px;font-weight:700;}
+
+  /* ── BADGE ── */
+  .badge{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;
+    font-size:11px;font-weight:700;white-space:nowrap;}
+  .badge.ok{background:var(--green-l);color:#1b5e20;border:1px solid #a5d6a7;}
+  .badge.bad{background:var(--red-l);color:#b71c1c;border:1px solid #ef9a9a;}
+  .badge.auditor{background:var(--accent-l);color:var(--blue);border:1px solid #c3d9f5;}
+  .badge.admin{background:var(--purple-l);color:#6a1b9a;border:1px solid #ce93d8;}
+  .badge.never{background:#eef2f8;color:#46586f;border:1px solid var(--border);}
+
+  /* ── TABLE ── */
+  .tbl{width:100%;border-collapse:collapse;font-size:13px;margin-top:14px;}
+  .tbl th{text-align:left;padding:8px 12px;background:var(--gray-l);font-weight:700;color:var(--text2);border-bottom:2px solid var(--border);}
+  .tbl td{padding:9px 12px;border-bottom:1px solid var(--border);color:var(--text);vertical-align:top;}
+  .tbl tr:last-child td{border-bottom:none;}
+  .tbl tr:hover td{background:#fafcff;}
+
+  /* ── CALLOUT ── */
+  .callout{display:flex;gap:10px;padding:14px 16px;border-radius:10px;margin:16px 0;font-size:13px;line-height:1.55;}
+  .callout.info{background:var(--accent-ll);border:1px solid #c3d9f5;color:#1a3a6a;}
+  .callout.warn{background:var(--amber-l);border:1px solid #ffe082;color:#7a5500;}
+  .callout.tip{background:var(--green-l);border:1px solid #c8e6c9;color:#1a4a1e;}
+  .callout-icon{font-size:18px;flex-shrink:0;margin-top:1px;}
+  .callout strong{font-weight:700;}
+
+  /* ── CHIP ── */
+  .chip{display:inline-block;background:var(--accent-l);color:var(--blue);border-radius:6px;
+    padding:2px 8px;font-size:11px;font-weight:600;margin:2px 2px 2px 0;}
+  .chip.mono{font-family:var(--mono);font-size:11px;}
+  .chip.req{background:var(--red-l);color:#b71c1c;}
+  .chip.opt{background:#eef2f8;color:var(--text2);}
+
+  /* ── SPLIT ── */
+  .split{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px;}
+  @media(max-width:540px){.split{grid-template-columns:1fr;}}
+
+  /* ── SCREEN MOCK ── */
+  .screen-mock{
+    border:2px solid var(--border);border-radius:14px;overflow:hidden;
+    box-shadow:var(--shadow);background:var(--card);
+    font-size:12px;margin:16px 0;
+  }
+  .screen-topbar{background:var(--navy);color:#fff;padding:10px 14px;font-size:13px;font-weight:600;
+    display:flex;align-items:center;gap:8px;}
+  .screen-body{padding:14px;}
+  .mock-row{background:var(--gray-l);border:1px solid var(--border);border-radius:8px;padding:10px 12px;
+    margin-bottom:6px;display:flex;align-items:center;gap:10px;}
+  .mock-av{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;
+    font-size:11px;font-weight:700;color:#fff;flex-shrink:0;font-family:var(--mono);}
+  .mock-name{font-weight:600;flex:1;font-size:13px;}
+  .mock-sub{font-size:10px;color:var(--text3);}
+
+  /* ── MISC ── */
+  h3{font-size:14px;font-weight:700;color:var(--text);margin:18px 0 8px;}
+  ul,ol{padding-left:20px;}
+  li{font-size:13px;color:var(--text2);margin-bottom:4px;line-height:1.5;}
+  strong{color:var(--text);}
+  p{font-size:13px;color:var(--text2);margin-bottom:10px;}
+  p:last-child{margin-bottom:0;}
+  code{background:#eef2f8;padding:2px 6px;border-radius:4px;font-family:var(--mono);font-size:12px;color:var(--navy);}
+  hr{border:none;border-top:1px solid var(--border);margin:20px 0;}
+
+  /* ── FOOTER ── */
+  .footer{background:var(--navy);color:rgba(255,255,255,.65);text-align:center;padding:28px 16px;font-size:12px;margin-top:24px;}
+  .footer strong{color:#fff;}
+
+  @media(max-width:600px){
+    .topnav a{display:none;}
+    .section-body{padding:16px 16px 20px;}
+    .toc-grid{grid-template-columns:1fr;}
+    .cards{grid-template-columns:1fr;}
+  }
+</style>
+</head>
+<body>
+
+<!-- TOP NAV -->
+<nav class="topnav">
+  <span class="topnav-logo">SGL Bahía Blanca · Pregate</span>
+  <span style="color:rgba(255,255,255,.35);">|</span>
+  <span class="topnav-title">Mis Inspecciones · Control documental — Tutorial</span>
+  <span class="topnav-sep"></span>
+  <a href="#s1">Inicio</a>
+  <a href="#s5">Alta + CNRT</a>
+  <a href="#s6">Cargar docs</a>
+  <a href="#s9">Admin</a>
+</nav>
+
+<!-- HERO -->
+<header class="hero">
+  <div class="hero-tag">SGL Bahía Blanca · Control Documental de Transporte</div>
+  <h1>Mis Inspecciones — Control documental</h1>
+  <p>Guía completa para gestionar y controlar el vencimiento de la documentación de transportistas, tractores, semirremolques y empresas de transporte.</p>
+  <div class="hero-pills">
+    <span class="pill">🪪 Transportistas</span>
+    <span class="pill">🚚 Tractores</span>
+    <span class="pill">🚛 Semirremolques</span>
+    <span class="pill">🏢 Transportes</span>
+    <span class="pill">🔎 Consulta CNRT</span>
+    <span class="pill">📄 Escaneo de docs</span>
+  </div>
+</header>
+
+<!-- TOC -->
+<div class="toc-wrap">
+  <div class="toc">
+    <div class="toc-title">Contenido</div>
+    <div class="toc-grid">
+      <a href="#s1"><span class="toc-num">1</span> Acceso, roles y tema</a>
+      <a href="#s2"><span class="toc-num">2</span> Pantalla principal</a>
+      <a href="#s3"><span class="toc-num">3</span> Estados de vencimiento</a>
+      <a href="#s4"><span class="toc-num">4</span> Documentos por sección</a>
+      <a href="#s5"><span class="toc-num">5</span> Alta de entidad + CNRT</a>
+      <a href="#s6"><span class="toc-num">6</span> Cargar / renovar documentos</a>
+      <a href="#s7"><span class="toc-num">7</span> Ficha de la entidad</a>
+      <a href="#s8"><span class="toc-num">8</span> Vista resumen para ALET</a>
+      <a href="#s9"><span class="toc-num">9</span> Panel de administración</a>
+      <a href="#s10"><span class="toc-num">10</span> Instalar la app (PWA)</a>
+    </div>
+  </div>
+</div>
+
+<div class="wrap">
+
+<!-- ════════ SECCIÓN 1 — LOGIN ════════ -->
+<div class="section" id="s1">
+  <div class="section-head">
+    <div class="ico">🔐</div>
+    <div>
+      <div class="section-num">Sección 1</div>
+      <div class="section-title">Acceso, roles y tema</div>
+    </div>
+  </div>
+  <div class="section-body">
+    <p>Mis Inspecciones · Control documental usa autenticación con <strong>email y contraseña</strong> mediante Supabase. Cada usuario tiene un rol que determina qué puede hacer.</p>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-n">1</div>
+        <div class="step-body">
+          <div class="step-title">Ingresar credenciales</div>
+          <div class="step-desc">En la pantalla de login escribí tu <strong>email</strong> y <strong>contraseña</strong>. Si los datos son incorrectos, el formulario "tiembla" y se limpia la contraseña para reintentar.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-n">2</div>
+        <div class="step-body">
+          <div class="step-title">Rol asignado</div>
+          <div class="step-desc">
+            Una vez dentro, tu rol aparece como badge junto a tu usuario:<br><br>
+            <span class="badge auditor">AUDITOR</span> — carga y consulta documentación.<br>
+            <span class="badge admin">ADMIN</span> — además gestiona usuarios y ve el panel de auditoría.
+          </div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-n">3</div>
+        <div class="step-body">
+          <div class="step-title">Tema oscuro / claro</div>
+          <div class="step-desc">El botón de <strong>luna / sol</strong> en la barra superior alterna entre modo oscuro y claro. La preferencia se recuerda en el dispositivo (por defecto arranca en modo oscuro).</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout info">
+      <span class="callout-icon">ℹ️</span>
+      <div>El botón <strong>Usuarios</strong> en la barra superior solo aparece para usuarios con rol <strong>Admin</strong>. Los auditores no lo ven.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════ SECCIÓN 2 — HOME ════════ -->
+<div class="section" id="s2">
+  <div class="section-head">
+    <div class="ico">🏠</div>
+    <div>
+      <div class="section-num">Sección 2</div>
+      <div class="section-title">Pantalla principal y secciones</div>
+    </div>
+  </div>
+  <div class="section-body">
+    <p>La app organiza toda la documentación en <strong>cuatro secciones</strong>. La pantalla de inicio muestra una tarjeta por sección con su cantidad de registros.</p>
+
+    <div class="cards">
+      <div class="card blue">
+        <div class="card-icon">🪪</div>
+        <div class="card-title">Transportistas</div>
+        <div class="card-desc">Choferes / conductores. Se buscan por nombre o DNI.</div>
+      </div>
+      <div class="card green">
+        <div class="card-icon">🚚</div>
+        <div class="card-title">Tractores</div>
+        <div class="card-desc">Camiones / unidades tractoras. Se buscan por patente.</div>
+      </div>
+      <div class="card amber">
+        <div class="card-icon">🚛</div>
+        <div class="card-title">Semirremolques</div>
+        <div class="card-desc">Acoplados / semis. Se buscan por patente.</div>
+      </div>
+      <div class="card purple">
+        <div class="card-icon">🏢</div>
+        <div class="card-title">Transportes</div>
+        <div class="card-desc">Empresas de transporte. Se buscan por nombre de empresa.</div>
+      </div>
+    </div>
+
+    <h3>Listado de una sección</h3>
+    <div class="screen-mock">
+      <div class="screen-topbar">🚚 Tractores</div>
+      <div class="screen-body">
+        <div class="mock-row">
+          <div class="mock-av" style="background:#1b7a3d;">AB12</div>
+          <div style="flex:1;"><div class="mock-name">AB123CD</div><div class="mock-sub">SCANIA · 2019 · CAT C</div></div>
+          <span class="badge ok">Vigente</span>
+        </div>
+        <div class="mock-row">
+          <div class="mock-av" style="background:#c0392b;">XY98</div>
+          <div style="flex:1;"><div class="mock-name">XY987ZW</div><div class="mock-sub">VOLVO · 2015</div></div>
+          <span class="badge bad">Vencido</span>
+        </div>
+      </div>
+    </div>
+
+    <p>Cada fila muestra un <strong>avatar con iniciales</strong> (color según sección y estado), el identificador, los datos secundarios y un badge de estado <span class="badge ok">Vigente</span> o <span class="badge bad">Vencido</span>. La <strong>búsqueda</strong> filtra en tiempo real e ignora puntos y mayúsculas.</p>
+  </div>
+</div>
+
+<!-- ════════ SECCIÓN 3 — ESTADOS ════════ -->
+<div class="section" id="s3">
+  <div class="section-head">
+    <div class="ico">🚦</div>
+    <div>
+      <div class="section-num">Sección 3</div>
+      <div class="section-title">Estados de vencimiento</div>
+    </div>
+  </div>
+  <div class="section-body">
+    <p>El estado de cada entidad y de cada documento se calcula automáticamente comparando la <strong>fecha de vencimiento</strong> contra la fecha de hoy.</p>
+
+    <table class="tbl">
+      <thead><tr><th>Estado</th><th>Significado</th></tr></thead>
+      <tbody>
+        <tr><td><span class="badge ok">Vigente</span></td><td>Todos los documentos <strong>obligatorios</strong> están cargados y sin vencer.</td></tr>
+        <tr><td><span class="badge bad">Vencido</span></td><td>Falta al menos un documento obligatorio, o uno de ellos venció.</td></tr>
+        <tr><td><span class="badge never">Sin vencimiento</span></td><td>Documento que no caduca nunca (ej. <strong>Cédula verde</strong>).</td></tr>
+      </tbody>
+    </table>
+
+    <div class="callout info">
+      <span class="callout-icon">📅</span>
+      <div>La comparación es <strong>solo por fecha</strong> (sin hora): si un documento vence hoy, todavía cuenta como <strong>vigente</strong>. Recién al día siguiente pasa a vencido.</div>
+    </div>
+
+    <div class="callout tip">
+      <span class="callout-icon">✓</span>
+      <div>La <strong>Cédula verde</strong> es un documento de por vida: una vez cargada, nunca figura como vencida ni afecta el estado general de la entidad.</div>
+    </div>
+
+    <p style="margin-top:14px;">El estado general de una entidad solo mira los documentos <strong>obligatorios</strong>. Los opcionales que estén vencidos no marcan a la entidad como "Vencido", pero sí se muestran con su propio punto rojo en la ficha.</p>
+  </div>
+</div>
+
+<!-- ════════ SECCIÓN 4 — DOCS POR SECCIÓN ════════ -->
+<div class="section" id="s4">
+  <div class="section-head">
+    <div class="ico">📋</div>
+    <div>
+      <div class="section-num">Sección 4</div>
+      <div class="section-title">Documentos requeridos por sección</div>
+    </div>
+  </div>
+  <div class="section-body">
+    <p>Cada sección tiene su propia lista de documentos. Los <span class="chip req">obligatorios</span> determinan el estado de la entidad; los <span class="chip opt">opcionales</span> se agregan si corresponde.</p>
+
+    <table class="tbl">
+      <thead><tr><th>Sección</th><th>Obligatorios</th><th>Opcionales</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><strong>🪪 Transportistas</strong></td>
+          <td><span class="chip req">Licencia de conducir</span> <span class="chip req">ART</span></td>
+          <td><span class="chip opt">F931</span> <span class="chip opt">Cláusula de no repetición</span></td>
+        </tr>
+        <tr>
+          <td><strong>🚚 Tractores</strong></td>
+          <td><span class="chip req">Cédula verde</span> <span class="chip req">VTV / RTO</span> <span class="chip req">Seguro</span></td>
+          <td><span class="chip opt">Libre de deuda</span></td>
+        </tr>
+        <tr>
+          <td><strong>🚛 Semirremolques</strong></td>
+          <td><span class="chip req">Cédula verde</span> <span class="chip req">VTV / RTO</span> <span class="chip req">Seguro</span></td>
+          <td><span class="chip opt">Libre de deuda</span></td>
+        </tr>
+        <tr>
+          <td><strong>🏢 Transportes</strong></td>
+          <td><span class="chip req">Nómina ART</span> <span class="chip req">F931</span> <span class="chip req">Póliza de seguros flota</span></td>
+          <td><span class="chip opt">Cláusula de no repetición</span></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="callout info">
+      <span class="callout-icon">ℹ️</span>
+      <div>La <strong>Cédula verde</strong> (tractores y semis) se carga una sola vez y queda como <span class="badge never">Sin vencimiento</span>.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════ SECCIÓN 5 — ALTA + CNRT ════════ -->
+<div class="section" id="s5">
+  <div class="section-head">
+    <div class="ico">➕</div>
+    <div>
+      <div class="section-num">Sección 5</div>
+      <div class="section-title">Alta de entidad + Consulta CNRT</div>
+    </div>
+  </div>
+  <div class="section-body">
+    <p>Desde el listado de cualquier sección, el botón <strong>"Nuevo"</strong> abre el formulario de alta. Los campos cambian según la sección.</p>
+
+    <h3>Campos por sección</h3>
+    <table class="tbl">
+      <thead><tr><th>Sección</th><th>Campos del alta</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Transportistas</strong></td><td>Apellido, Nombre, DNI, Empresa/Transportista</td></tr>
+        <tr><td><strong>Transportes</strong></td><td>Nombre de la empresa, CUIT</td></tr>
+        <tr><td><strong>Tractores / Semis</strong></td><td>Patente + datos técnicos (autocompletados por CNRT)</td></tr>
+      </tbody>
+    </table>
+
+    <div class="callout warn">
+      <span class="callout-icon">⚠️</span>
+      <div>En transportistas, <strong>Apellido, Nombre y DNI</strong> son obligatorios. El DNI se formatea automáticamente con puntos (ej. <span class="chip mono">12.345.678</span>).</div>
+    </div>
+
+    <h3>🔎 Consultar CNRT (tractores y semirremolques)</h3>
+    <p>Al dar de alta un tractor o semi, podés <strong>autocompletar los datos técnicos</strong> consultando directamente la base de la CNRT a partir de la patente.</p>
+
+    <div class="flow">
+      <div class="flow-box">Escribir patente</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box">Tocar "Consultar CNRT"</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box cnrt">Datos autocompletados</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box">Revisar y confirmar</div>
+    </div>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-n">1</div>
+        <div class="step-body">
+          <div class="step-title">Ingresar la patente</div>
+          <div class="step-desc">Escribí la patente (se convierte a mayúsculas y quita espacios). Podés tocar <strong>"Consultar CNRT"</strong> o presionar <strong>Enter</strong>.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-n">2</div>
+        <div class="step-body">
+          <div class="step-title">Consulta automática</div>
+          <div class="step-desc">
+            La app consulta la CNRT y, si encuentra el vehículo, completa automáticamente:<br>
+            <span class="chip">Marca</span>
+            <span class="chip">Modelo</span>
+            <span class="chip">Año modelo</span>
+            <span class="chip">Configuración de ejes</span>
+            <span class="chip">Categoría</span>
+            <span class="chip">PBTC (toneladas)</span>
+          </div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-n">3</div>
+        <div class="step-body">
+          <div class="step-title">Si no se encuentra</div>
+          <div class="step-desc">Si la patente no está en la CNRT (o hay un error de conexión), aparece un aviso y se habilitan campos para cargar <strong>Marca/Tipo</strong> y <strong>Año</strong> manualmente.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-n">4</div>
+        <div class="step-body">
+          <div class="step-title">Confirmar y guardar</div>
+          <div class="step-desc">Revisá los datos y tocá <strong>"Confirmar y guardar"</strong>. La <strong>categoría</strong> queda destacada como badge <span class="chip mono">CAT C</span> en el listado y la ficha.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout tip">
+      <span class="callout-icon">💡</span>
+      <div>La consulta CNRT pasa por un <strong>proxy interno</strong> de la app, así que funciona sin problemas de CORS desde el navegador. Tras guardar, se abre directamente la ficha de la nueva entidad para empezar a cargar documentos.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════ SECCIÓN 6 — CARGAR DOCS ════════ -->
+<div class="section" id="s6">
+  <div class="section-head">
+    <div class="ico">📷</div>
+    <div>
+      <div class="section-num">Sección 6</div>
+      <div class="section-title">Cargar y renovar documentos</div>
+    </div>
+  </div>
+  <div class="section-body">
+    <p>Desde la ficha de una entidad, cada documento tiene un botón <strong>"Cargar"</strong> (si está vacío) o <strong>"Renovar"</strong> (si ya existe). Esto abre la pantalla de captura con un <strong>editor de imagen integrado</strong>.</p>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-n">1</div>
+        <div class="step-body">
+          <div class="step-title">Elegir origen: cámara o archivo</div>
+          <div class="step-desc">
+            <span class="chip">📷 Cámara</span> tomar foto del documento en el momento.<br>
+            <span class="chip">📁 Archivo</span> seleccionar una imagen o PDF existente del dispositivo.
+          </div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-n">2</div>
+        <div class="step-body">
+          <div class="step-title">Editor de imagen (solo fotos)</div>
+          <div class="step-desc">
+            Si cargás una imagen, se abre el editor de escaneo con:<br><br>
+            <strong>✂️ Recorte ajustable</strong> — arrastrá las 4 esquinas para encuadrar solo el documento.<br>
+            <strong>🔄 Rotar</strong> — gira la imagen de a 90°.<br>
+            <strong>🎨 Filtros</strong> — Original, B&N, Documento (alto contraste) y Brillo.<br><br>
+            Los PDF se cargan directamente sin pasar por el editor.
+          </div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-n">3</div>
+        <div class="step-body">
+          <div class="step-title">Varias páginas</div>
+          <div class="step-desc">Podés agregar <strong>múltiples páginas</strong> con el botón <strong>+</strong>. Se muestran como miniaturas en una tira con el contador de páginas.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-n">4</div>
+        <div class="step-body">
+          <div class="step-title">Fecha de vencimiento</div>
+          <div class="step-desc">Ingresá la <strong>fecha de vencimiento</strong> del documento. Es obligatoria (excepto en cédula verde). Con la fecha cargada, la app genera automáticamente el nombre del archivo.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-n">5</div>
+        <div class="step-body">
+          <div class="step-title">Nombre automático del archivo</div>
+          <div class="step-desc">
+            El archivo se nombra solo con un patrón estándar:<br>
+            <code>ENTIDAD_DOCUMENTO_vto-DD-MM-AAAA.pdf</code><br>
+            Por ejemplo: <span class="chip mono">PEREZ_JUAN_LIC_vto-15-08-2027.pdf</span>
+          </div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-n">6</div>
+        <div class="step-body">
+          <div class="step-title">Confirmar y subir</div>
+          <div class="step-desc">Al confirmar, el archivo se sube al almacenamiento en la nube, se genera una <strong>vista previa</strong> y el documento queda registrado. Si era una renovación, el archivo anterior se reemplaza automáticamente.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout info">
+      <span class="callout-icon">🔒</span>
+      <div>Los archivos se guardan en almacenamiento privado. Para verlos se genera un <strong>enlace temporal firmado</strong> cada vez — los documentos nunca quedan expuestos públicamente.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════ SECCIÓN 7 — FICHA ════════ -->
+<div class="section" id="s7">
+  <div class="section-head">
+    <div class="ico">🗂️</div>
+    <div>
+      <div class="section-num">Sección 7</div>
+      <div class="section-title">Ficha de la entidad</div>
+    </div>
+  </div>
+  <div class="section-body">
+    <p>Al abrir una entidad ves toda su documentación, agrupada en <strong>Obligatorios</strong> y <strong>Opcionales</strong>, con su estado y acciones.</p>
+
+    <h3>Cada documento muestra</h3>
+    <ul>
+      <li>Un <strong>punto de estado</strong> verde (vigente) o rojo (vencido / sin cargar).</li>
+      <li>El <strong>badge de vencimiento</strong>: "Vence DD/MM/AAAA", "Venció …" o "Sin cargar".</li>
+      <li>Botón <strong>Cargar / Renovar</strong> y, si hay archivo, botón <strong>Ver PDF</strong>.</li>
+    </ul>
+    <p>Los documentos opcionales todavía no cargados aparecen como un botón <strong>"Agregar: …"</strong> al final.</p>
+
+    <h3>Bloque "URL Resumen para ALET"</h3>
+    <p>Arriba de la ficha hay un panel con una <strong>URL de resumen</strong> de esa entidad, pensada para compartir o vincular en el sistema <strong>ALET</strong>. Ofrece tres acciones:</p>
+    <div class="cards">
+      <div class="card blue">
+        <div class="card-icon">📋</div>
+        <div class="card-title">Copiar URL</div>
+        <div class="card-desc">Copia el enlace de resumen al portapapeles para pegarlo donde haga falta.</div>
+      </div>
+      <div class="card">
+        <div class="card-icon">🔗</div>
+        <div class="card-title">Ir al enlace</div>
+        <div class="card-desc">Abre la vista resumen de la entidad en una pestaña nueva (ver Sección 8).</div>
+      </div>
+      <div class="card green">
+        <div class="card-icon">📦</div>
+        <div class="card-title">Descargar ZIP</div>
+        <div class="card-desc">Descarga todos los documentos cargados de la entidad en un único archivo ZIP.</div>
+      </div>
+    </div>
+
+    <div class="callout warn">
+      <span class="callout-icon">🗑️</span>
+      <div>Eliminar una entidad borra también <strong>toda su documentación</strong> asociada. La app pide confirmación y registra la acción en el log de auditoría.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════ SECCIÓN 8 — VISTA RESUMEN ════════ -->
+<div class="section" id="s8">
+  <div class="section-head">
+    <div class="ico">👁️</div>
+    <div>
+      <div class="section-num">Sección 8</div>
+      <div class="section-title">Vista resumen para ALET</div>
+    </div>
+  </div>
+  <div class="section-body">
+    <p>La <strong>vista resumen</strong> es una pantalla pensada para revisar de un vistazo la documentación de una entidad. Se abre desde la URL de resumen (<code>?ver=…&id=…</code>) y requiere tener sesión iniciada.</p>
+
+    <h3>Qué muestra</h3>
+    <ul>
+      <li>Un <strong>encabezado de estado</strong> general: <span class="badge ok">🟢 Documentación al día</span> o <span class="badge bad">🔴 Vencida o incompleta</span>.</li>
+      <li>Cada documento con su <strong>vista previa de imagen</strong>, badge de vencimiento y botón Ver PDF.</li>
+      <li>Las previews se pueden <strong>ampliar a pantalla completa</strong> (lightbox) tocándolas.</li>
+    </ul>
+
+    <div class="callout info">
+      <span class="callout-icon">🔎</span>
+      <div>Esta vista es ideal para el control en portería / pre-gate: se abre el enlace de la entidad y se confirma en segundos si el transportista, tractor o semi tiene todo en regla.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════ SECCIÓN 9 — ADMIN ════════ -->
+<div class="section" id="s9">
+  <div class="section-head">
+    <div class="ico">⚙️</div>
+    <div>
+      <div class="section-num">Sección 9</div>
+      <div class="section-title">Panel de administración</div>
+    </div>
+  </div>
+  <div class="section-body">
+    <p>Exclusivo para usuarios <span class="badge admin">ADMIN</span>. Se abre desde el botón <strong>Usuarios</strong> de la barra superior y tiene tres pestañas.</p>
+
+    <div class="cards">
+      <div class="card blue">
+        <div class="card-icon">👥</div>
+        <div class="card-title">Usuarios</div>
+        <div class="card-desc">Crear usuarios nuevos (email + contraseña + rol Auditor/Admin) y eliminar cuentas existentes. La contraseña debe tener al menos 6 caracteres.</div>
+      </div>
+      <div class="card green">
+        <div class="card-icon">📊</div>
+        <div class="card-title">Dashboard</div>
+        <div class="card-desc">Total de registros en base, conteo por sección y <strong>actividad por usuario</strong> (entidades y documentos cargados).</div>
+      </div>
+      <div class="card purple">
+        <div class="card-icon">📜</div>
+        <div class="card-title">Auditoría</div>
+        <div class="card-desc">Registro cronológico de acciones: entidades creadas, editadas, eliminadas y documentos subidos, con fecha, usuario y detalle.</div>
+      </div>
+    </div>
+
+    <div class="callout info">
+      <span class="callout-icon">🔐</span>
+      <div>La creación y eliminación de usuarios se hace a través de una <strong>función serverless segura</strong>; las claves administrativas nunca quedan expuestas en el navegador.</div>
+    </div>
+
+    <h3>Registro de auditoría</h3>
+    <p>Cada acción importante queda registrada automáticamente con su usuario y fecha:</p>
+    <table class="tbl">
+      <thead><tr><th>Acción</th><th>Cuándo se registra</th></tr></thead>
+      <tbody>
+        <tr><td><span style="color:var(--green);font-weight:700;">Entidad creada</span></td><td>Al dar de alta un transportista, vehículo o empresa.</td></tr>
+        <tr><td><span style="color:var(--blue);font-weight:700;">Entidad editada</span></td><td>Al modificar datos de una entidad existente.</td></tr>
+        <tr><td><span style="color:var(--red);font-weight:700;">Entidad eliminada</span></td><td>Al borrar una entidad y su documentación.</td></tr>
+        <tr><td><span style="color:var(--text2);font-weight:700;">Documento subido</span></td><td>Al cargar o renovar cualquier documento.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ════════ SECCIÓN 10 — PWA ════════ -->
+<div class="section" id="s10">
+  <div class="section-head">
+    <div class="ico">📱</div>
+    <div>
+      <div class="section-num">Sección 10</div>
+      <div class="section-title">Instalar la app (PWA)</div>
+    </div>
+  </div>
+  <div class="section-body">
+    <p>Mis Inspecciones · Control documental es una <strong>Progressive Web App</strong>: se instala en el dispositivo y funciona como una app nativa.</p>
+
+    <div class="split">
+      <div>
+        <h3>📱 Android / Chrome</h3>
+        <ol>
+          <li>Abrí la app en Chrome.</li>
+          <li>Aparece el banner <em>"Agregar a pantalla de inicio"</em>.</li>
+          <li>Si no aparece: menú ⋮ → <strong>Instalar app</strong>.</li>
+        </ol>
+      </div>
+      <div>
+        <h3>🍎 iPhone / Safari</h3>
+        <ol>
+          <li>Abrí la app en Safari.</li>
+          <li>Tocá el botón compartir <strong>⎦⎤</strong>.</li>
+          <li>Elegí <strong>"Agregar a pantalla de inicio"</strong>.</li>
+        </ol>
+      </div>
+    </div>
+
+    <div class="split">
+      <div>
+        <h3>💻 Windows / Mac (Chrome / Edge)</h3>
+        <ol>
+          <li>Ícono de instalación en la barra de dirección.</li>
+          <li>O menú ⋮ → <strong>Instalar Mis Inspecciones</strong>.</li>
+        </ol>
+      </div>
+      <div class="card green" style="margin-top:0;">
+        <div class="card-icon">✅</div>
+        <div class="card-title">Ventajas de instalar</div>
+        <div class="card-desc">
+          • Acceso directo desde el inicio<br>
+          • Ventana propia sin barra del navegador<br>
+          • Carga más rápida<br>
+          • Cámara lista para escanear documentos
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════ REFERENCIA RÁPIDA ════════ -->
+<div class="section">
+  <div class="section-head" style="background:#1b5e20;">
+    <div class="ico">⚡</div>
+    <div>
+      <div class="section-num">Referencia rápida</div>
+      <div class="section-title">Flujo completo de un alta</div>
+    </div>
+  </div>
+  <div class="section-body">
+    <h3>Dar de alta un tractor y cargar su documentación</h3>
+    <div class="flow">
+      <div class="flow-box">1. Sección Tractores</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box">2. Nuevo + patente</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box cnrt">3. Consultar CNRT</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box">4. Guardar</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box">5. Cargar docs (foto + recorte)</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box cnrt">6. Fecha vto + subir</div>
+    </div>
+
+    <hr>
+
+    <h3>Indicadores de estado</h3>
+    <table class="tbl">
+      <thead><tr><th>Indicador</th><th>Significado</th></tr></thead>
+      <tbody>
+        <tr><td><span class="badge ok">Vigente</span></td><td>Documentación obligatoria completa y al día</td></tr>
+        <tr><td><span class="badge bad">Vencido</span></td><td>Falta un documento obligatorio o alguno venció</td></tr>
+        <tr><td><span class="badge never">Sin vencimiento</span></td><td>Documento que no caduca (cédula verde)</td></tr>
+        <tr><td><span class="badge auditor">AUDITOR</span></td><td>Carga y consulta documentación</td></tr>
+        <tr><td><span class="badge admin">ADMIN</span></td><td>Además: usuarios, dashboard y auditoría</td></tr>
+        <tr><td><span class="chip mono">CAT C</span></td><td>Categoría del vehículo según datos CNRT</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+</div><!-- /wrap -->
+
+<footer class="footer">
+  <div><strong>SGL Bahía Blanca · Pregate</strong> · Mis Inspecciones — Control documental</div>
+  <div style="margin-top:6px;">App de uso interno · v2026.05</div>
+</footer>
+
+</body>
+</html>
