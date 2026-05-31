@@ -393,31 +393,38 @@ function cancelEditor(){
   const id  = params.get('id');
 
   if(ver && id){
-    // Vista pública — skip login, cargar desde Supabase con anon key
-    document.getElementById('login-wall').classList.add('hidden');
-    showScreen('s-ver');
-    document.getElementById('ver-content').innerHTML =
-      '<div style="padding:60px 20px;text-align:center;color:var(--text3);">Cargando documentación…</div>';
-
-    sbLoadPublicEntity(ver, id)
-      .then(ent => {
-        if(!ent){ renderVerScreen(ver, id); return; }
-        // Reconstruir estructura en db para reutilizar renderVerScreen
-        const docs = {};
-        for(const doc of (ent.documentos || [])){
-          docs[doc.nombre] = { id: doc.id, vto: doc.vto, file: doc.filename||'',
-            storage_path: doc.storage_path||null, previewUrl: doc.preview_url||'', driveUrl: '' };
-        }
-        if(!db[ver]) db[ver] = [];
-        db[ver] = db[ver].filter(x => x.id !== ent.id);
-        db[ver].push({ id: ent.id, label: ent.label, sub: ent.sub||'',
-          categoria: ent.categoria||'', pbtc: ent.pbtc||'', ejes: ent.ejes||'', docs });
-        renderVerScreen(ver, id);
-      })
-      .catch(() => {
+    sbGetSession().then(session => {
+      if(session){
+        // Sesión activa — mostrar vista de entidad
+        document.getElementById('login-wall').classList.add('hidden');
+        showScreen('s-ver');
         document.getElementById('ver-content').innerHTML =
-          '<div style="padding:60px 20px;text-align:center;color:var(--text3);"><div style="font-size:40px;margin-bottom:16px;">⚠️</div><p style="font-size:15px;line-height:1.6;">No se pudo cargar la documentación.</p></div>';
-      });
+          '<div style="padding:60px 20px;text-align:center;color:var(--text3);">Cargando documentación…</div>';
+
+        sbLoadPublicEntity(ver, id)
+          .then(ent => {
+            if(!ent){ renderVerScreen(ver, id); return; }
+            // Reconstruir estructura en db para reutilizar renderVerScreen
+            const docs = {};
+            for(const doc of (ent.documentos || [])){
+              docs[doc.nombre] = { id: doc.id, vto: doc.vto, file: doc.filename||'',
+                storage_path: doc.storage_path||null, previewUrl: doc.preview_url||'', driveUrl: '' };
+            }
+            if(!db[ver]) db[ver] = [];
+            db[ver] = db[ver].filter(x => x.id !== ent.id);
+            db[ver].push({ id: ent.id, label: ent.label, sub: ent.sub||'',
+              categoria: ent.categoria||'', pbtc: ent.pbtc||'', ejes: ent.ejes||'', docs });
+            renderVerScreen(ver, id);
+          })
+          .catch(() => {
+            document.getElementById('ver-content').innerHTML =
+              '<div style="padding:60px 20px;text-align:center;color:var(--text3);"><div style="font-size:40px;margin-bottom:16px;">⚠️</div><p style="font-size:15px;line-height:1.6;">No se pudo cargar la documentación.</p></div>';
+          });
+      } else {
+        // Sin sesión — mostrar login wall normal
+        initApp();
+      }
+    });
   } else {
     // App normal — verificar sesión Supabase
     initApp();
