@@ -71,43 +71,6 @@ function updateFilename(){
   document.getElementById('ocr-filename').textContent=`${prefix}_${currentDoc.docId.toUpperCase()}_vto-${d}-${m}-${y}.pdf`;
 }
 
-async function generatePreviewJPG(srcFile){
-  return new Promise(async (resolve)=>{
-    try {
-      if(srcFile.type === 'application/pdf'){
-        // Use PDF.js to render first page
-        const arrBuf = await srcFile.arrayBuffer();
-        const pdfjsLib = window['pdfjs-dist/build/pdf'] || window.pdfjsLib;
-        if(!pdfjsLib){ resolve(null); return; }
-        const pdf = await pdfjsLib.getDocument({data: arrBuf}).promise;
-        const page = await pdf.getPage(1);
-        const viewport = page.getViewport({scale: 1.5});
-        const canvas = document.createElement('canvas');
-        canvas.width = viewport.width;
-        canvas.height = viewport.height;
-        await page.render({canvasContext: canvas.getContext('2d'), viewport}).promise;
-        canvas.toBlob(resolve, 'image/jpeg', 0.85);
-      } else {
-        // Image file
-        const img = new Image();
-        const url = URL.createObjectURL(srcFile);
-        img.onload = ()=>{
-          const MAX = 1200;
-          const scale = Math.min(1, MAX / Math.max(img.width, img.height));
-          const canvas = document.createElement('canvas');
-          canvas.width  = img.width  * scale;
-          canvas.height = img.height * scale;
-          canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
-          URL.revokeObjectURL(url);
-          canvas.toBlob(resolve, 'image/jpeg', 0.85);
-        };
-        img.onerror = ()=>{ URL.revokeObjectURL(url); resolve(null); };
-        img.src = url;
-      }
-    } catch(e){ console.warn('Preview error', e); resolve(null); }
-  });
-}
-
 // Arma un único PDF con TODAS las páginas capturadas (fotos y/o PDFs).
 // Cada imagen entra como una página a su tamaño; los PDFs se fusionan página por página.
 async function buildPdfFromPages(pages){
@@ -169,22 +132,8 @@ async function confirmUpload(){
     const storagePath = `${currentSection}/${e.id}/${filename}`;
     const uploadedPath = await sbUploadFile(fileToUpload, storagePath);
 
-    // Generar preview como base64 (igual que antes)
-    let previewUrl = '';
-    try {
-      statusEl.textContent='Generando preview…';
-      const previewBlob = await generatePreviewJPG(capturedPages[0]);
-      if(previewBlob){
-        previewUrl = await new Promise(res=>{
-          const reader = new FileReader();
-          reader.onload = ev => res(ev.target.result);
-          reader.readAsDataURL(previewBlob);
-        });
-      }
-    } catch(ex){ console.warn('Preview generation failed', ex); }
-
-    // Actualizar en memoria
-    const docData = { vto: dv, file: filename, storage_path: uploadedPath, previewUrl, driveUrl: '#storage' };
+    // Ya no guardamos preview base64: la vista de Alet renderiza el PDF completo al vuelo.
+    const docData = { vto: dv, file: filename, storage_path: uploadedPath, previewUrl: '', driveUrl: '#storage' };
     e.docs[currentDoc.docId] = docData;
     updateCounts();
 

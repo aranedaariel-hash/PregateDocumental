@@ -448,6 +448,7 @@ function renderVerScreen(sec, entityId){
     ${statusHtml}
   </div>`;
 
+  const previewTasks = [];
   allVisible.forEach(doc=>{
     const data = e.docs[doc.id];
     const stv = docState(data, doc.id);
@@ -466,14 +467,11 @@ function renderVerScreen(sec, entityId){
       ? `<button onclick="openPdf('${data.storage_path}')" class="ver-btn ver-btn-accent">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
           Ver PDF</button>` : '';
-    const previewHtml = data && data.previewUrl
-      ? `<div class="ver-img-wrap" onclick="openLightbox('${data.previewUrl}')">
-          <img class="ver-preview" src="${data.previewUrl}" alt="${doc.name}" loading="lazy" onerror="this.parentElement.innerHTML='<div style=padding:20px;text-align:center;background:var(--bg2);color:var(--text3);font-size:12px;>No se pudo cargar la imagen</div>'">
-          <div class="ver-zoom-icon">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
-          </div>
-        </div>`
-      : data ? `<div style="padding:16px;text-align:center;background:var(--bg2);color:var(--text3);font-size:12px;">Preview no disponible · ${data.file||''}</div>` : '';
+    const prevId = 'verprev-' + doc.id;
+    const previewHtml = (data && data.storage_path)
+      ? `<div class="ver-img-wrap" id="${prevId}"><div style="padding:24px;text-align:center;color:var(--text3);font-size:12px;">Cargando vista…</div></div>`
+      : data ? `<div style="padding:16px;text-align:center;background:var(--bg2);color:var(--text3);font-size:12px;">Sin vista previa${data.file?' · '+data.file:''}</div>` : '';
+    if(data && data.storage_path) previewTasks.push({ id: prevId, path: data.storage_path });
 
     html += `<div class="ver-doc">
       <div class="ver-doc-header">
@@ -487,6 +485,48 @@ function renderVerScreen(sec, entityId){
 
   html += `<div style="padding:20px;text-align:center;font-size:11px;color:var(--text3);">DocuTransporte · Pregate<br>Última actualización: ${new Date().toLocaleDateString('es-AR')}</div>`;
   content.innerHTML = html;
+  // Renderizar TODAS las páginas de cada PDF, al vuelo desde el archivo (sin base64 en la base)
+  previewTasks.forEach(t => renderDocPreview(t.id, t.path));
+}
+
+// Renderiza en `containerId` todas las páginas del PDF en `storagePath`.
+// Si el archivo es viejo (imagen con nombre .pdf), cae a mostrarlo como imagen.
+async function renderDocPreview(containerId, storagePath){
+  const cont = document.getElementById(containerId);
+  if(!cont) return;
+  let url;
+  try { url = await sbGetSignedUrl(storagePath); }
+  catch(e){ cont.innerHTML = '<div style="padding:16px;text-align:center;color:var(--text3);font-size:12px;">No se pudo cargar la vista</div>'; return; }
+  try {
+    const pdfjsLib = window['pdfjs-dist/build/pdf'] || window.pdfjsLib;
+    if(!pdfjsLib) throw new Error('pdfjs no disponible');
+    const pdf = await pdfjsLib.getDocument({ url }).promise;
+    const frag = document.createDocumentFragment();
+    for(let i=1; i<=pdf.numPages; i++){
+      const page = await pdf.getPage(i);
+      const viewport = page.getViewport({ scale: 1.5 });
+      const canvas = document.createElement('canvas');
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+      canvas.className = 'ver-preview';
+      canvas.style.cssText = 'width:100%;height:auto;display:block;margin-bottom:8px;cursor:pointer;border-radius:8px;';
+      canvas.title = 'Página ' + i + ' de ' + pdf.numPages + ' — tocá para abrir el PDF';
+      canvas.addEventListener('click', () => openPdf(storagePath));
+      await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+      frag.appendChild(canvas);
+    }
+    cont.innerHTML = '';
+    cont.appendChild(frag);
+    if(pdf.numPages > 1){
+      const tag = document.createElement('div');
+      tag.style.cssText = 'text-align:center;font-size:11px;color:var(--text3);margin-top:-2px;';
+      tag.textContent = pdf.numPages + ' páginas';
+      cont.appendChild(tag);
+    }
+  } catch(e){
+    // Documento viejo: probablemente una imagen con nombre .pdf → mostrar como imagen
+    cont.innerHTML = `<img class="ver-preview" src="${url}" style="width:100%;height:auto;display:block;cursor:pointer;border-radius:8px;" onclick="openPdf('${storagePath}')" onerror="this.parentElement.innerHTML='<div style=padding:16px;text-align:center;color:var(--text3);font-size:12px;>No se pudo cargar la vista</div>'">`;
+  }
 }
 
 // ══ ABRIR PDF (signed URL) ══
