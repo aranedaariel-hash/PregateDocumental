@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -67,6 +67,9 @@
     <div class="home-btns">
       <button class="theme-toggle" onclick="toggleTheme()">
         <svg id="theme-icon" class="theme-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+      </button>
+      <button class="theme-toggle" id="btn-pass" onclick="openChangePass()" title="Cambiar contrase&ntilde;a" style="display:none;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
       </button>
       <button class="theme-toggle" id="btn-users" onclick="openUsers()" title="Gestión de usuarios" style="display:none;">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
@@ -309,6 +312,24 @@
 </div>
 
 <!-- ══ LIGHTBOX ══ -->
+<!-- CAMBIAR CONTRASENA -->
+<div id="pass-modal" style="display:none;position:fixed;inset:0;z-index:3000;background:rgba(15,23,42,.55);align-items:center;justify-content:center;padding:18px;">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);max-width:380px;width:100%;padding:22px;box-shadow:0 16px 48px rgba(0,0,0,.35);font-family:var(--font);">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+      <span style="font-size:20px;">&#128273;</span>
+      <span style="font-size:16px;font-weight:700;color:var(--text);">Cambiar contrase&ntilde;a</span>
+    </div>
+    <p style="font-size:12.5px;color:var(--text2);margin:0 0 14px;line-height:1.5;">Eleg&iacute; una contrase&ntilde;a nueva de al menos 6 caracteres.</p>
+    <input type="password" id="cp-pass1" placeholder="Nueva contrase&ntilde;a" autocomplete="new-password" style="width:100%;padding:11px 12px;margin-bottom:9px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg2);color:var(--text);font-size:14px;font-family:var(--font);box-sizing:border-box;">
+    <input type="password" id="cp-pass2" placeholder="Repetir contrase&ntilde;a" autocomplete="new-password" onkeydown="if(event.key==='Enter')submitChangePass()" style="width:100%;padding:11px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg2);color:var(--text);font-size:14px;font-family:var(--font);box-sizing:border-box;">
+    <div id="cp-error" style="color:var(--bad);font-size:12px;min-height:17px;margin:6px 2px 12px;"></div>
+    <div style="display:flex;gap:8px;">
+      <button onclick="closeChangePass()" style="flex:1;padding:11px;border:1px solid var(--border);border-radius:var(--radius-sm);background:transparent;color:var(--text2);font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font);">Cancelar</button>
+      <button id="cp-submit" onclick="submitChangePass()" style="flex:1;padding:11px;border:none;border-radius:var(--radius-sm);background:var(--accent);color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--font);">Guardar</button>
+    </div>
+  </div>
+</div>
+
 <div class="lightbox" id="lightbox" onclick="closeLightbox()">
   <button class="lightbox-close" onclick="closeLightbox()">✕</button>
   <img id="lightbox-img" src="" alt="">

@@ -17,6 +17,13 @@ async function sbSignOut() {
   await getSB().auth.signOut();
 }
 
+// Cambio de contraseña del propio usuario logueado (self-service, no requiere admin)
+async function sbUpdatePassword(newPassword) {
+  const { data, error } = await getSB().auth.updateUser({ password: newPassword });
+  if (error) throw error;
+  return data;
+}
+
 async function sbGetSession() {
   const { data: { session } } = await getSB().auth.getSession();
   return session;

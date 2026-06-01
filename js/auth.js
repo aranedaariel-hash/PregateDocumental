@@ -20,6 +20,9 @@ function updateAuthUI(connected, email = '', rol = '') {
     // Mostrar botón de usuarios solo para admin
     const usersBtn = document.getElementById('btn-users');
     if (usersBtn) usersBtn.style.display = rol === 'admin' ? 'flex' : 'none';
+    // Botón de cambio de contraseña para cualquier usuario logueado
+    const passBtn = document.getElementById('btn-pass');
+    if (passBtn) passBtn.style.display = 'flex';
   } else {
     dot.classList.remove('connected');
     txt.textContent = 'No conectado';
@@ -28,6 +31,8 @@ function updateAuthUI(connected, email = '', rol = '') {
     if (badge) badge.style.display = 'none';
     const usersBtn = document.getElementById('btn-users');
     if (usersBtn) usersBtn.style.display = 'none';
+    const passBtn = document.getElementById('btn-pass');
+    if (passBtn) passBtn.style.display = 'none';
   }
 }
 
@@ -71,4 +76,45 @@ async function doLogout() {
 
 function checkSession() {
   return false; // Supabase session check is async — handled in initApp()
+}
+
+// ══ CAMBIO DE CONTRASEÑA (self-service) ══
+function openChangePass() {
+  const m = document.getElementById('pass-modal');
+  if (!m) return;
+  document.getElementById('cp-pass1').value = '';
+  document.getElementById('cp-pass2').value = '';
+  document.getElementById('cp-error').textContent = '';
+  m.style.display = 'flex';
+  setTimeout(() => document.getElementById('cp-pass1').focus(), 50);
+}
+
+function closeChangePass() {
+  const m = document.getElementById('pass-modal');
+  if (m) m.style.display = 'none';
+}
+
+async function submitChangePass() {
+  const p1 = document.getElementById('cp-pass1').value;
+  const p2 = document.getElementById('cp-pass2').value;
+  const errEl = document.getElementById('cp-error');
+  const btn = document.getElementById('cp-submit');
+  errEl.textContent = '';
+
+  if (p1.length < 6) { errEl.textContent = 'La contraseña debe tener al menos 6 caracteres'; return; }
+  if (p1 !== p2)     { errEl.textContent = 'Las contraseñas no coinciden'; return; }
+
+  btn.disabled = true;
+  const prevLabel = btn.textContent;
+  btn.textContent = 'Guardando…';
+  try {
+    await sbUpdatePassword(p1);
+    closeChangePass();
+    showToast('✓ Contraseña actualizada');
+  } catch (e) {
+    errEl.textContent = 'No se pudo cambiar la contraseña. Volvé a iniciar sesión e intentá de nuevo.';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = prevLabel;
+  }
 }
