@@ -108,6 +108,28 @@ async function generatePreviewJPG(srcFile){
   });
 }
 
+// Arma un único PDF con TODAS las páginas capturadas (fotos y/o PDFs).
+// Cada imagen entra como una página a su tamaño; los PDFs se fusionan página por página.
+async function buildPdfFromPages(pages){
+  if(typeof PDFLib === 'undefined') throw new Error('Librería PDF no disponible');
+  const { PDFDocument } = PDFLib;
+  const out = await PDFDocument.create();
+  for(const f of pages){
+    const buf = await f.arrayBuffer();
+    if(f.type === 'application/pdf'){
+      const src = await PDFDocument.load(buf);
+      const copied = await out.copyPages(src, src.getPageIndices());
+      copied.forEach(p => out.addPage(p));
+    } else {
+      const img = (f.type === 'image/png') ? await out.embedPng(buf) : await out.embedJpg(buf);
+      const page = out.addPage([img.width, img.height]);
+      page.drawImage(img, { x:0, y:0, width: img.width, height: img.height });
+    }
+  }
+  const bytes = await out.save();
+  return new Blob([bytes], { type: 'application/pdf' });
+}
+
 async function confirmUpload(){
   if(!capturedPages.length){ showToast('⚠️ Primero cargá el documento'); return; }
   const dv=document.getElementById('ocr-date').value;
@@ -131,10 +153,21 @@ async function confirmUpload(){
       } catch(ex){ console.warn('No se pudo eliminar archivo anterior', ex); }
     }
 
-    // Subir archivo principal a Supabase Storage
+    // Armar el archivo a subir: un PDF real con TODAS las páginas.
+    // Si es un único PDF ya cargado, se sube tal cual (sin re-procesar).
+    let fileToUpload;
+    if(capturedPages.length === 1 && capturedPages[0].type === 'application/pdf'){
+      fileToUpload = new File([capturedPages[0]], filename, { type: 'application/pdf' });
+    } else {
+      statusEl.textContent = capturedPages.length > 1 ? 'Armando PDF ('+capturedPages.length+' págs.)…' : 'Armando PDF…';
+      const pdfBlob = await buildPdfFromPages(capturedPages);
+      fileToUpload = new File([pdfBlob], filename, { type: 'application/pdf' });
+    }
+
+    // Subir a Supabase Storage
     statusEl.textContent='Subiendo archivo…';
     const storagePath = `${currentSection}/${e.id}/${filename}`;
-    const uploadedPath = await sbUploadFile(capturedPages[0], storagePath);
+    const uploadedPath = await sbUploadFile(fileToUpload, storagePath);
 
     // Generar preview como base64 (igual que antes)
     let previewUrl = '';
