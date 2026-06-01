@@ -261,7 +261,13 @@ async function deleteEntity(){
       showToast('No se pudo eliminar: ' + (err.message || 'sin permisos'));
       return; // no tocar el estado local si el server rechazó
     }
-    // 2. Registrar en el log (best-effort) recién después del borrado OK
+    // 2. Borrar los archivos del Storage (best-effort) — si no, quedan huérfanos en el bucket
+    const paths = Object.values(e.docs || {}).map(d => d && d.storage_path).filter(Boolean);
+    if(paths.length){
+      try { await sbDeleteFiles(paths); }
+      catch(ex){ console.warn('No se pudieron borrar todos los archivos del bucket', ex); }
+    }
+    // 3. Registrar en el log (best-effort) recién después del borrado OK
     sbWriteAuditLog({ accion: 'entidad_eliminada', entidad_id: e.id, entidad_label: e.label, entidad_tipo: currentSection }).catch(()=>{});
     // 3. Quitar localmente
     db[currentSection] = (db[currentSection]||[]).filter(x=>x.id!==currentEntityId);
@@ -328,10 +334,8 @@ function renderDocCard(doc,data){
   if(st==='sin-cargar')   badge = `<span class="badge badge-bad">Sin cargar</span>`;
   else if(neverExpires)   badge = `<span class="badge badge-ok">Sin vencimiento</span>`;
   else if(st==='vencido') badge = `<span class="badge badge-bad">Venció ${formatVto(data.vto)}</span>`;
-  else if(st==='pronto'){
-    const d = diasParaVencer(data.vto);
-    badge = `<span class="badge badge-warn">Vence en ${d} día${d!==1?'s':''}</span>`;
-  } else                  badge = `<span class="badge badge-ok">Vence ${formatVto(data.vto)}</span>`;
+  else if(st==='pronto') badge = `<span class="badge badge-warn">Vence ${formatVto(data.vto)}</span>`;
+  else                    badge = `<span class="badge badge-ok">Vence ${formatVto(data.vto)}</span>`;
   const driveBtn = data && data.storage_path
     ? `<button class="btn-sm btn-sm-accent" onclick="openPdf('${data.storage_path}')">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
@@ -626,6 +630,23 @@ async function removeUser(id) {
   });
 }
 
+async function cleanupExpiredNow(btn){
+  if(!confirm('¿Limpiar ahora los archivos de documentos vencidos? La fecha de vencimiento se conserva; solo se borra el archivo del almacenamiento.')) return;
+  if(btn){ btn.disabled = true; btn.textContent = 'Limpiando…'; }
+  try {
+    const r = await sbCleanupExpired();
+    showToast(`✓ ${r.cleaned} documento(s) limpiados (${r.filesDeleted} archivo/s)`);
+    // refrescar estado local desde la nube para reflejar los cambios
+    const fresh = await loadStateFromSupabase();
+    Object.assign(db, fresh);
+    localStorage.setItem('dct-db', JSON.stringify(db));
+    updateCounts();
+  } catch(e){
+    showToast('Error: ' + e.message);
+  }
+  if(btn){ btn.disabled = false; btn.textContent = 'Limpiar ahora'; }
+}
+
 async function renderDashboard() {
   const panel = document.getElementById('admin-panel');
   const secLabels = { chofer: 'Transportistas', tractor: 'Tractores', semi: 'Semirremolques', transporte: 'Transportes' };
@@ -641,6 +662,11 @@ async function renderDashboard() {
     <div style="padding:16px;">
       <div style="font-size:11px;color:var(--text3);font-family:var(--mono);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Total en base: ${total} registros</div>
       <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px;">${countsHtml}</div>
+      <div style="margin-bottom:20px;padding:14px;background:var(--bg2);border:1px solid var(--border2);border-radius:var(--radius);">
+        <div style="font-size:13px;font-weight:600;margin-bottom:4px;">🧹 Limpiar documentos vencidos</div>
+        <div style="font-size:12px;color:var(--text3);margin-bottom:10px;">Borra del almacenamiento los archivos de documentos ya vencidos (se hace solo cada día; este botón lo fuerza ahora). La fecha de vencimiento se conserva.</div>
+        <button id="btn-cleanup" class="btn-sm btn-sm-accent" onclick="cleanupExpiredNow(this)">Limpiar ahora</button>
+      </div>
       <div style="font-size:11px;color:var(--text3);font-family:var(--mono);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Actividad por usuario</div>
       <div id="dash-users"><div style="color:var(--text3);font-size:13px;">Cargando…</div></div>
     </div>`;
