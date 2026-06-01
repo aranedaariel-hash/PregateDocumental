@@ -172,6 +172,8 @@ async function cnrtAutocompletar(){
 }
 
 async function saveNew(){
+  if(saveNew._running) return;
+  saveNew._running = true;
   let entry;
   if(currentSection==='chofer'){
     const ap=(document.getElementById('nf-apellido').value||'').trim().toUpperCase();
@@ -220,6 +222,8 @@ async function saveNew(){
     updateCounts();
     showToast('Error al guardar: ' + e.message);
     return;
+  } finally {
+    saveNew._running = false;
   }
   setTimeout(()=>{ openEntity(entry.id); },600);
 }
@@ -283,8 +287,10 @@ function goEdit(){
 }
 
 async function saveEdit(){
+  if(saveEdit._running) return;
+  saveEdit._running = true;
   const e = (db[currentSection]||[]).find(x=>x.id===editEntityId);
-  if(!e){ showToast('No se encontró la entidad'); return; }
+  if(!e){ saveEdit._running = false; showToast('No se encontró la entidad'); return; }
   const gv = id => (document.getElementById(id)?.value||'').trim();
 
   if(currentSection==='chofer'){
@@ -317,7 +323,10 @@ async function saveEdit(){
     showToast('✓ Cambios guardados');
   } catch(err){
     showToast('Error al guardar: ' + err.message);
+    saveEdit._running = false;
     return;
+  } finally {
+    saveEdit._running = false;
   }
   if(typeof updateCounts==='function') updateCounts();
   localStorage.setItem('dct-db', JSON.stringify(db));

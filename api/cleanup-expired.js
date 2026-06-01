@@ -68,8 +68,14 @@ export default async function handler(req, res) {
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${SERVICE_KEY}`, apikey: SERVICE_KEY },
       body: JSON.stringify({ prefixes: paths })
     });
-    if (delRes.ok) filesDeleted = paths.length;
-    else console.warn('Error borrando archivos del bucket:', await delRes.text());
+    if (delRes.ok) {
+      filesDeleted = paths.length;
+    } else {
+      /* Si el Storage falla, NO limpiar la DB — el cron reintentará mañana */
+      const detail = await delRes.text();
+      console.warn('Error borrando archivos del bucket:', detail);
+      return res.status(200).json({ cleaned: 0, filesDeleted: 0, hoy: hoyAR, warning: 'storage_delete_failed', detail });
+    }
   }
 
   // ── 3. Limpiar las columnas pesadas, manteniendo la fila y su vto ──

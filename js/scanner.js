@@ -78,17 +78,22 @@ async function buildPdfFromPages(pages){
   const { PDFDocument } = PDFLib;
   const out = await PDFDocument.create();
   for(const f of pages){
-    const buf = await f.arrayBuffer();
-    if(f.type === 'application/pdf'){
-      const src = await PDFDocument.load(buf);
-      const copied = await out.copyPages(src, src.getPageIndices());
-      copied.forEach(p => out.addPage(p));
-    } else {
-      const img = (f.type === 'image/png') ? await out.embedPng(buf) : await out.embedJpg(buf);
-      const page = out.addPage([img.width, img.height]);
-      page.drawImage(img, { x:0, y:0, width: img.width, height: img.height });
+    try{
+      const buf = await f.arrayBuffer();
+      if(f.type === 'application/pdf'){
+        const src = await PDFDocument.load(buf);
+        const copied = await out.copyPages(src, src.getPageIndices());
+        copied.forEach(p => out.addPage(p));
+      } else {
+        const img = (f.type === 'image/png') ? await out.embedPng(buf) : await out.embedJpg(buf);
+        const page = out.addPage([img.width, img.height]);
+        page.drawImage(img, { x:0, y:0, width: img.width, height: img.height });
+      }
+    } catch(pageErr){
+      console.warn('Página omitida al armar PDF:', pageErr);
     }
   }
+  if(out.getPageCount() === 0) throw new Error('No se pudo procesar ninguna página del documento');
   const bytes = await out.save();
   return new Blob([bytes], { type: 'application/pdf' });
 }

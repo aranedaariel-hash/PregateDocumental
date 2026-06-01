@@ -228,6 +228,8 @@ function formatVto(vto){
   return `${d}/${m}/${y}`;
 }
 
+function escHtml(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
 // ══ CUSTOM CONFIRM ══
 function showConfirm(msg, onOk){
   let modal = document.getElementById('confirm-modal');
@@ -251,7 +253,7 @@ function showConfirm(msg, onOk){
 async function deleteEntity(){
   const e = (db[currentSection]||[]).find(x=>x.id===currentEntityId);
   if(!e) return;
-  showConfirm(`¿Eliminar <strong>${e.label}</strong> y toda su documentación?`, async ()=>{
+  showConfirm(`¿Eliminar <strong>${escHtml(e.label)}</strong> y toda su documentación?`, async ()=>{
     showToast('Eliminando…');
     // 1. Eliminar en Supabase PRIMERO (cascade borra documentos). Si falla (p.ej. RLS), abortar.
     try {
@@ -382,17 +384,21 @@ function editDocVto(docId, docName){
   document.getElementById('editvto-ok').onclick = async ()=>{
     const nv = document.getElementById('editvto-input').value;
     if(!nv){ showToast('⚠️ Ingresá una fecha'); return; }
-    modal.style.display = 'none';
+    const okBtn = document.getElementById('editvto-ok');
+    okBtn.disabled = true;
+    okBtn.textContent = 'Guardando…';
     const docData = Object.assign({}, e.docs[docId], { vto: nv });
-    e.docs[docId] = docData;
-    updateCounts();
-    renderDetail();
     try {
       const newId = await sbSaveDocumento(e.id, docId, docData); // update por UUID
-      e.docs[docId].id = newId;
+      e.docs[docId] = Object.assign({}, docData, { id: newId });
+      updateCounts();
+      renderDetail();
+      modal.style.display = 'none';
       sbWriteAuditLog({ accion: 'documento_editado', entidad_id: e.id, entidad_label: e.label, entidad_tipo: currentSection, documento_nombre: docName, filename: docData.file }).catch(()=>{});
       showToast('✓ Vencimiento actualizado');
     } catch(err){
+      okBtn.disabled = false;
+      okBtn.textContent = 'Guardar';
       showToast('Error al guardar: ' + err.message);
     }
   };
