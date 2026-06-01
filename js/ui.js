@@ -586,19 +586,20 @@ async function openUsers() {
 }
 
 function switchAdminTab(tab) {
-  ['usuarios', 'dashboard', 'auditoria'].forEach(t => {
+  ['usuarios', 'dashboard', 'auditoria', 'errores'].forEach(t => {
     const btn = document.getElementById('tab-' + t);
     if (!btn) return;
     const active = t === tab;
-    btn.style.color       = active ? 'var(--accent)' : 'var(--text2)';
+    btn.style.color        = active ? 'var(--accent)' : 'var(--text2)';
     btn.style.borderBottom = active ? '2px solid var(--accent)' : '2px solid transparent';
-    btn.style.fontWeight  = active ? '600' : '400';
+    btn.style.fontWeight   = active ? '600' : '400';
   });
   const panel = document.getElementById('admin-panel');
   panel.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text3);">Cargando…</div>';
-  if (tab === 'usuarios')   renderUserList();
-  else if (tab === 'dashboard') renderDashboard();
-  else renderAuditLog();
+  if      (tab === 'usuarios')   renderUserList();
+  else if (tab === 'dashboard')  renderDashboard();
+  else if (tab === 'errores')    renderErrorLog();
+  else                           renderAuditLog();
 }
 
 function _userRowHtml(u) {
@@ -789,6 +790,48 @@ async function renderAuditLog() {
       </div>
       ${rows}
       <div style="padding:12px 16px;font-size:11px;color:var(--text3);text-align:center;">Últimas ${log.length} acciones</div>`;
+  } catch (e) {
+    panel.innerHTML = `<div style="padding:20px;color:var(--bad);">${e.message}</div>`;
+  }
+}
+
+async function renderErrorLog() {
+  const panel = document.getElementById('admin-panel');
+  panel.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text3);">Cargando…</div>';
+  try {
+    const logs = await sbGetErrorLogs(200);
+    if (!logs.length) {
+      panel.innerHTML = '<div style="padding:40px;text-align:center;color:var(--text3);">Sin errores registrados — todo en orden.</div>';
+      return;
+    }
+    const rows = logs.map((row, i) => {
+      const fecha = new Date(row.created_at).toLocaleString('es-AR', { day:'2-digit', month:'2-digit', year:'2-digit', hour:'2-digit', minute:'2-digit' });
+      const user  = (row.user_email || '—').split('@')[0];
+      const pantalla = (row.pantalla || '').replace(/^.*\//, '') || '—';
+      const detId = 'err-det-' + i;
+      return `<div style="padding:10px 16px;border-bottom:1px solid var(--border);font-size:12px;">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap;">
+          <span style="color:var(--bad);font-weight:600;flex:1;min-width:0;word-break:break-word;">${escHtml(row.message || '—')}</span>
+          <span style="color:var(--text3);font-family:var(--mono);font-size:10px;white-space:nowrap;">${fecha}</span>
+        </div>
+        <div style="margin-top:3px;font-size:11px;color:var(--text3);">
+          <span style="margin-right:10px;">👤 ${escHtml(user)}</span>
+          <span style="margin-right:10px;">📍 ${escHtml(pantalla)}</span>
+          ${row.app_version ? `<span style="margin-right:10px;font-family:var(--mono);">${escHtml(row.app_version)}</span>` : ''}
+        </div>
+        ${row.stack ? `
+        <div style="margin-top:6px;">
+          <button onclick="var d=document.getElementById('${detId}');d.style.display=d.style.display==='none'?'block':'none';"
+            style="font-size:10px;color:var(--accent);background:none;border:none;cursor:pointer;padding:0;font-family:var(--font);">Ver detalle técnico</button>
+          <pre id="${detId}" style="display:none;margin:6px 0 0;padding:8px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:10px;color:var(--text2);overflow-x:auto;white-space:pre-wrap;word-break:break-all;">${escHtml(row.stack)}</pre>
+        </div>` : ''}
+      </div>`;
+    }).join('');
+    panel.innerHTML = `
+      <div style="padding:10px 16px;background:var(--bg2);border-bottom:1px solid var(--border);font-size:10px;color:var(--text3);font-family:var(--mono);text-transform:uppercase;letter-spacing:1px;">
+        ${logs.length} errores recientes · más reciente primero
+      </div>
+      ${rows}`;
   } catch (e) {
     panel.innerHTML = `<div style="padding:20px;color:var(--bad);">${e.message}</div>`;
   }

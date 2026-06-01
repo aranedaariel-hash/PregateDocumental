@@ -255,6 +255,25 @@ async function sbCleanupExpired() {
   return data;
 }
 
+// ══ ERROR LOG ══
+async function sbWriteErrorLog({ message, stack, pantalla, user_agent, app_version }) {
+  await getSB().from('error_logs').insert({
+    user_id:     currentUser?.id    || null,
+    user_email:  currentUser?.email || null,
+    message, stack, pantalla, user_agent, app_version
+  });
+}
+
+async function sbGetErrorLogs(limit = 200) {
+  const { data, error } = await getSB()
+    .from('error_logs')
+    .select('*')
+    .order('created_at', { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return data || [];
+}
+
 // ══ VISTA PÚBLICA: cargar entidad sin auth ══
 async function sbLoadPublicEntity(section, entityId) {
   const { data, error } = await getSB()
