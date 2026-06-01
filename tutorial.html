@@ -139,6 +139,7 @@
   .badge{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;
     font-size:11px;font-weight:700;white-space:nowrap;}
   .badge.ok{background:var(--green-l);color:#1b5e20;border:1px solid #a5d6a7;}
+  .badge.warn{background:var(--amber-l);color:#7a5500;border:1px solid #ffe082;}
   .badge.bad{background:var(--red-l);color:#b71c1c;border:1px solid #ef9a9a;}
   .badge.auditor{background:var(--accent-l);color:var(--blue);border:1px solid #c3d9f5;}
   .badge.admin{background:var(--purple-l);color:#6a1b9a;border:1px solid #ce93d8;}
@@ -371,20 +372,31 @@
     </div>
   </div>
   <div class="section-body">
-    <p>El estado de cada entidad y de cada documento se calcula automáticamente comparando la <strong>fecha de vencimiento</strong> contra la fecha de hoy.</p>
+    <p>El estado de cada entidad y de cada documento se calcula automáticamente comparando la <strong>fecha de vencimiento</strong> contra la fecha de hoy. El badge de cada documento <strong>siempre muestra la fecha de vencimiento</strong>; lo que cambia es el <strong>color</strong>, que funciona como un semáforo:</p>
 
     <table class="tbl">
       <thead><tr><th>Estado</th><th>Significado</th></tr></thead>
       <tbody>
-        <tr><td><span class="badge ok">Vigente</span></td><td>Todos los documentos <strong>obligatorios</strong> están cargados y sin vencer.</td></tr>
-        <tr><td><span class="badge bad">Vencido</span></td><td>Falta al menos un documento obligatorio, o uno de ellos venció.</td></tr>
+        <tr><td><span class="badge ok">Vence 15/08/2027</span></td><td>🟢 <strong>Vigente</strong> — falta más de 30 días para el vencimiento.</td></tr>
+        <tr><td><span class="badge warn">Vence 20/06/2026</span></td><td>🟡 <strong>Por vencer</strong> — quedan 30 días o menos. La fecha se ve igual, el color avisa que conviene renovar pronto.</td></tr>
+        <tr><td><span class="badge bad">Venció 10/05/2026</span></td><td>🔴 <strong>Vencido</strong> — la fecha ya pasó, o falta un documento obligatorio.</td></tr>
         <tr><td><span class="badge never">Sin vencimiento</span></td><td>Documento que no caduca nunca (ej. <strong>Cédula verde</strong>).</td></tr>
       </tbody>
     </table>
 
+    <div class="callout tip">
+      <span class="callout-icon">🚦</span>
+      <div>La idea es que <strong>siempre veas la fecha</strong> de vencimiento de cada documento; el color (verde / amarillo / rojo) te dice de un vistazo qué tan urgente es, sin tener que hacer cuentas.</div>
+    </div>
+
     <div class="callout info">
       <span class="callout-icon">📅</span>
       <div>La comparación es <strong>solo por fecha</strong> (sin hora): si un documento vence hoy, todavía cuenta como <strong>vigente</strong>. Recién al día siguiente pasa a vencido.</div>
+    </div>
+
+    <div class="callout warn">
+      <span class="callout-icon">🧹</span>
+      <div><strong>Limpieza automática:</strong> cuando un documento pasa a <strong>vencido</strong>, su archivo deja de tener valor (igual hay que renovarlo). Una rutina diaria <strong>borra el archivo del almacenamiento</strong> para no acumular peso muerto, pero <strong>mantiene la fila con su fecha</strong>, así seguís viendo "Venció DD/MM/AAAA" y sabés que toca renovar. Cuando subís la renovación, vuelve a tener archivo. La <strong>cédula verde</strong> nunca se toca.</div>
     </div>
 
     <div class="callout tip">
@@ -698,7 +710,7 @@
       <div class="card green">
         <div class="card-icon">📊</div>
         <div class="card-title">Dashboard</div>
-        <div class="card-desc">Total de registros en base, conteo por sección y <strong>actividad por usuario</strong> (entidades y documentos cargados).</div>
+        <div class="card-desc">Total de registros en base, conteo por sección, <strong>actividad por usuario</strong> y el botón <strong>🧹 Limpiar ahora</strong> para forzar la limpieza de vencidos.</div>
       </div>
       <div class="card purple">
         <div class="card-icon">📜</div>
@@ -711,6 +723,15 @@
       <span class="callout-icon">🔐</span>
       <div>La creación y eliminación de usuarios se hace a través de una <strong>función serverless segura</strong>; las claves administrativas nunca quedan expuestas en el navegador.</div>
     </div>
+
+    <h3>🧹 Limpieza de documentos vencidos</h3>
+    <p>Para que el almacenamiento no se llene de documentos vencidos (que de todas formas hay que renovar), el sistema limpia solo el lastre:</p>
+    <ul>
+      <li>Una <strong>rutina automática diaria</strong> borra del almacenamiento los archivos de documentos que ya vencieron, y libera su vista previa. <strong>Mantiene la fila y la fecha</strong>, así el documento sigue figurando como "Venció DD/MM/AAAA".</li>
+      <li>La <strong>cédula verde</strong> (sin vencimiento) nunca se toca.</li>
+      <li>En el <strong>Dashboard</strong> hay un botón <strong>"Limpiar ahora"</strong> para forzar esa limpieza en el momento, sin esperar a la corrida diaria.</li>
+      <li>Además, al <strong>eliminar una entidad</strong> se borran también sus archivos del almacenamiento (antes quedaban huérfanos).</li>
+    </ul>
 
     <h3>Registro de auditoría</h3>
     <p>Cada acción importante queda registrada automáticamente con su usuario y fecha:</p>
@@ -810,7 +831,8 @@
     <table class="tbl">
       <thead><tr><th>Indicador</th><th>Significado</th></tr></thead>
       <tbody>
-        <tr><td><span class="badge ok">Vigente</span></td><td>Documentación obligatoria completa y al día</td></tr>
+        <tr><td><span class="badge ok">Vigente</span></td><td>Documentación obligatoria completa y al día (falta &gt;30 días)</td></tr>
+        <tr><td><span class="badge warn">Por vencer</span></td><td>Algún documento vence en 30 días o menos</td></tr>
         <tr><td><span class="badge bad">Vencido</span></td><td>Falta un documento obligatorio o alguno venció</td></tr>
         <tr><td><span class="badge never">Sin vencimiento</span></td><td>Documento que no caduca (cédula verde)</td></tr>
         <tr><td><span class="badge auditor">AUDITOR</span></td><td>Carga y consulta documentación</td></tr>
@@ -825,7 +847,7 @@
 
 <footer class="footer">
   <div><strong>SGL Bahía Blanca · Pregate</strong> · Mis Inspecciones — Control documental</div>
-  <div style="margin-top:6px;">App de uso interno · v2026.05</div>
+  <div style="margin-top:6px;">App de uso interno · v2026.06</div>
 </footer>
 
 </body>
